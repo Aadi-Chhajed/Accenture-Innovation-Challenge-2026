@@ -1,0 +1,1705 @@
+{
+  "hospital": {
+    "id": "H-CITYCARE",
+    "name": "CityCare Medical Centre",
+    "location": "Mid-sized Indian city",
+    "jurisdiction": "India - DPDP Act plus hospital privacy and security policy",
+    "normalDailyVolume": 250,
+    "currentMode": "Normal",
+    "syntheticDataNotice": "All patients, staff, records, thresholds, and transcripts are synthetic demo data. Clinical thresholds require validation."
+  },
+  "departments": [
+    {
+      "id": "D1",
+      "name": "Emergency General",
+      "type": "Queue",
+      "capacity": 34,
+      "currentLoad": 24,
+      "staffAvailable": 11,
+      "averageServiceMins": 42
+    },
+    {
+      "id": "D2",
+      "name": "Resuscitation / Critical Care Bay",
+      "type": "Escalation",
+      "capacity": 4,
+      "currentLoad": 3,
+      "staffAvailable": 4,
+      "averageServiceMins": 18
+    },
+    {
+      "id": "D3",
+      "name": "Trauma",
+      "type": "Queue",
+      "capacity": 5,
+      "currentLoad": 3,
+      "staffAvailable": 5,
+      "averageServiceMins": 35
+    },
+    {
+      "id": "D4",
+      "name": "Cardiac Review",
+      "type": "Queue",
+      "capacity": 6,
+      "currentLoad": 4,
+      "staffAvailable": 3,
+      "averageServiceMins": 28
+    },
+    {
+      "id": "D5",
+      "name": "Stroke / Neuro Review",
+      "type": "Queue",
+      "capacity": 4,
+      "currentLoad": 2,
+      "staffAvailable": 2,
+      "averageServiceMins": 31
+    },
+    {
+      "id": "D6",
+      "name": "Pediatrics",
+      "type": "Queue",
+      "capacity": 10,
+      "currentLoad": 8,
+      "staffAvailable": 4,
+      "averageServiceMins": 38
+    },
+    {
+      "id": "D7",
+      "name": "Obstetrics",
+      "type": "Queue",
+      "capacity": 6,
+      "currentLoad": 3,
+      "staffAvailable": 3,
+      "averageServiceMins": 40
+    },
+    {
+      "id": "D8",
+      "name": "Fast Track / Minor Care",
+      "type": "Queue",
+      "capacity": 12,
+      "currentLoad": 9,
+      "staffAvailable": 3,
+      "averageServiceMins": 22
+    },
+    {
+      "id": "D9",
+      "name": "Observation",
+      "type": "Queue",
+      "capacity": 18,
+      "currentLoad": 13,
+      "staffAvailable": 5,
+      "averageServiceMins": 90
+    },
+    {
+      "id": "D10",
+      "name": "Imaging",
+      "type": "Support",
+      "capacity": 12,
+      "currentLoad": 9,
+      "staffAvailable": 4,
+      "averageServiceMins": 25
+    },
+    {
+      "id": "D11",
+      "name": "Isolation / Infection Concern",
+      "type": "Queue",
+      "capacity": 6,
+      "currentLoad": 5,
+      "staffAvailable": 3,
+      "averageServiceMins": 45
+    },
+    {
+      "id": "D12",
+      "name": "ICU Escalation",
+      "type": "Escalation",
+      "capacity": 8,
+      "currentLoad": 7,
+      "staffAvailable": 6,
+      "averageServiceMins": 120
+    }
+  ],
+  "resources": [
+    {
+      "id": "R1",
+      "name": "ED bed",
+      "category": "Beds",
+      "total": 34,
+      "available": 8,
+      "status": "Available",
+      "location": "Emergency General"
+    },
+    {
+      "id": "R2",
+      "name": "Critical care bay",
+      "category": "Rooms",
+      "total": 4,
+      "available": 1,
+      "status": "Constrained",
+      "location": "Resuscitation"
+    },
+    {
+      "id": "R3",
+      "name": "Trauma bay",
+      "category": "Rooms",
+      "total": 5,
+      "available": 2,
+      "status": "Available",
+      "location": "Trauma"
+    },
+    {
+      "id": "R4",
+      "name": "Observation bed",
+      "category": "Beds",
+      "total": 18,
+      "available": 5,
+      "status": "Available",
+      "location": "Observation"
+    },
+    {
+      "id": "R5",
+      "name": "Pediatric bed",
+      "category": "Beds",
+      "total": 10,
+      "available": 2,
+      "status": "Constrained",
+      "location": "Pediatrics"
+    },
+    {
+      "id": "R6",
+      "name": "Isolation room",
+      "category": "Rooms",
+      "total": 6,
+      "available": 1,
+      "status": "Constrained",
+      "location": "Isolation"
+    },
+    {
+      "id": "R7",
+      "name": "ECG machine",
+      "category": "Equipment",
+      "total": 5,
+      "available": 2,
+      "status": "Available",
+      "location": "Emergency"
+    },
+    {
+      "id": "R8",
+      "name": "Monitor",
+      "category": "Equipment",
+      "total": 28,
+      "available": 7,
+      "status": "Available",
+      "location": "Emergency"
+    },
+    {
+      "id": "R9",
+      "name": "Oxygen point",
+      "category": "Equipment",
+      "total": 22,
+      "available": 6,
+      "status": "Available",
+      "location": "Emergency"
+    },
+    {
+      "id": "R10",
+      "name": "Imaging slot",
+      "category": "Equipment",
+      "total": 12,
+      "available": 3,
+      "status": "Constrained",
+      "location": "Radiology"
+    },
+    {
+      "id": "R11",
+      "name": "Emergency physician",
+      "category": "Staff",
+      "total": 8,
+      "available": 4,
+      "status": "Available",
+      "location": "ED"
+    },
+    {
+      "id": "R12",
+      "name": "Nurse review",
+      "category": "Staff",
+      "total": 22,
+      "available": 11,
+      "status": "Available",
+      "location": "ED"
+    }
+  ],
+  "staff": [
+    {
+      "id": "S1",
+      "name": "Dr. Ananya Rao",
+      "role": "Emergency Physician",
+      "department": "Emergency General",
+      "status": "Available"
+    },
+    {
+      "id": "S2",
+      "name": "Dr. Kabir Mehta",
+      "role": "Cardiac Review Lead",
+      "department": "Cardiac Review",
+      "status": "Busy"
+    },
+    {
+      "id": "S3",
+      "name": "Dr. Farah Siddiqui",
+      "role": "Pediatrician",
+      "department": "Pediatrics",
+      "status": "Available"
+    },
+    {
+      "id": "S4",
+      "name": "Nurse Neha Kapoor",
+      "role": "Triage Nurse",
+      "department": "Nurse Tablet",
+      "status": "Available"
+    },
+    {
+      "id": "S5",
+      "name": "Nurse Ajay More",
+      "role": "Trauma Nurse",
+      "department": "Trauma",
+      "status": "Available"
+    },
+    {
+      "id": "S6",
+      "name": "Dr. Shalini Menon",
+      "role": "OB Consultant",
+      "department": "Obstetrics",
+      "status": "Available"
+    }
+  ],
+  "patients": [
+    {
+      "id": "P-1788071582219",
+      "name": "Rajesh Kumar",
+      "age": 67,
+      "ageGroup": "Geriatric",
+      "sex": "Male",
+      "previousRecord": "Unknown"
+    },
+    {
+      "id": "P-1788061950111",
+      "name": "New Patient",
+      "age": 46,
+      "ageGroup": "Adult",
+      "sex": "Female",
+      "previousRecord": "Unknown"
+    },
+    {
+      "id": "P-1001",
+      "name": "Ramesh Kulkarni",
+      "age": 72,
+      "ageGroup": "Geriatric",
+      "sex": "Male",
+      "previousRecord": "Available",
+      "previousSummary": "Known hypertension; prior emergency visit for breathing concern.",
+      "phone": "+91 9570619227"
+    },
+    {
+      "id": "P-1002",
+      "name": "Anika Sharma",
+      "age": 4,
+      "ageGroup": "Child",
+      "sex": "Female",
+      "previousRecord": "Not found",
+      "phone": "+91 9546878666"
+    },
+    {
+      "id": "P-1003",
+      "name": "Meera Iyer",
+      "age": 31,
+      "ageGroup": "Adult",
+      "sex": "Female",
+      "previousRecord": "Available",
+      "previousSummary": "Pregnancy record available; 28 weeks noted in synthetic demo chart.",
+      "phone": "+91 9165132715"
+    },
+    {
+      "id": "P-1004",
+      "name": "Imran Khan",
+      "age": 45,
+      "ageGroup": "Adult",
+      "sex": "Male",
+      "previousRecord": "Unknown",
+      "phone": "+91 9944319873"
+    },
+    {
+      "id": "P-1005",
+      "name": "Sunita Patil",
+      "age": 68,
+      "ageGroup": "Geriatric",
+      "sex": "Female",
+      "previousRecord": "Available",
+      "previousSummary": "Diabetes and hypertension listed in synthetic history.",
+      "phone": "+91 9733294367"
+    },
+    {
+      "id": "P-1006",
+      "name": "Aarav Deshmukh",
+      "age": 9,
+      "ageGroup": "Child",
+      "sex": "Male",
+      "previousRecord": "Available",
+      "previousSummary": "Pediatric asthma note in synthetic record.",
+      "phone": "+91 9707284833"
+    },
+    {
+      "id": "P-1007",
+      "name": "Kavita Nair",
+      "age": 54,
+      "ageGroup": "Adult",
+      "sex": "Female",
+      "previousRecord": "Not found",
+      "phone": "+91 9212695395"
+    },
+    {
+      "id": "P-1008",
+      "name": "Rahul Verma",
+      "age": 28,
+      "ageGroup": "Adult",
+      "sex": "Male",
+      "previousRecord": "Unknown",
+      "phone": "+91 9479801534"
+    },
+    {
+      "id": "P-1009",
+      "name": "Fatima Ansari",
+      "age": 63,
+      "ageGroup": "Adult",
+      "sex": "Female",
+      "previousRecord": "Available",
+      "previousSummary": "Previous cardiac review pathway two years ago.",
+      "phone": "+91 9913151537"
+    },
+    {
+      "id": "P-1010",
+      "name": "Dev Malhotra",
+      "age": 19,
+      "ageGroup": "Adult",
+      "sex": "Male",
+      "previousRecord": "Not found",
+      "phone": "+91 9689543015"
+    },
+    {
+      "id": "P-1011",
+      "name": "Bhavna Shah",
+      "age": 37,
+      "ageGroup": "Adult",
+      "sex": "Female",
+      "previousRecord": "Available",
+      "previousSummary": "Known allergy to penicillin.",
+      "phone": "+91 9219358448"
+    },
+    {
+      "id": "P-1012",
+      "name": "Nikhil Rao",
+      "age": 42,
+      "ageGroup": "Adult",
+      "sex": "Male",
+      "previousRecord": "Not found",
+      "phone": "+91 9790756610"
+    },
+    {
+      "id": "P-1013",
+      "name": "Leela Menon",
+      "age": 76,
+      "ageGroup": "Geriatric",
+      "sex": "Female",
+      "previousRecord": "Available",
+      "previousSummary": "Prior stroke-like episode in synthetic record.",
+      "phone": "+91 9354019321"
+    },
+    {
+      "id": "P-1014",
+      "name": "Sana Qureshi",
+      "age": 24,
+      "ageGroup": "Adult",
+      "sex": "Female",
+      "previousRecord": "Unknown",
+      "phone": "+91 9889996537"
+    },
+    {
+      "id": "P-1015",
+      "name": "Vikram Singh",
+      "age": 33,
+      "ageGroup": "Adult",
+      "sex": "Male",
+      "previousRecord": "Not found",
+      "phone": "+91 9583660878"
+    },
+    {
+      "id": "P-1016",
+      "name": "Gauri Joshi",
+      "age": 58,
+      "ageGroup": "Adult",
+      "sex": "Female",
+      "previousRecord": "Available",
+      "previousSummary": "On regular medication for blood pressure.",
+      "phone": "+91 9680615080"
+    },
+    {
+      "id": "P-1017",
+      "name": "Om Prakash",
+      "age": 81,
+      "ageGroup": "Geriatric",
+      "sex": "Male",
+      "previousRecord": "Unknown",
+      "phone": "+91 9353526514"
+    },
+    {
+      "id": "P-1018",
+      "name": "Tara Bhosale",
+      "age": 2,
+      "ageGroup": "Child",
+      "sex": "Female",
+      "previousRecord": "Not found",
+      "phone": "+91 9467353149"
+    },
+    {
+      "id": "P-1019",
+      "name": "Harsh Jain",
+      "age": 16,
+      "ageGroup": "Adult",
+      "sex": "Male",
+      "previousRecord": "Available",
+      "previousSummary": "Sports injury visit last year.",
+      "phone": "+91 9360078188"
+    },
+    {
+      "id": "P-1020",
+      "name": "Priya Reddy",
+      "age": 29,
+      "ageGroup": "Adult",
+      "sex": "Female",
+      "previousRecord": "Not found",
+      "phone": "+91 9431896167"
+    }
+  ],
+  "encounters": [
+    {
+      "id": "E-2002",
+      "patientId": "P-1002",
+      "arrivalMode": "Walk-in",
+      "arrivalStatus": "Waiting",
+      "speakerSource": "Patient",
+      "language": "English",
+      "communicationLimitations": [],
+      "patientCategories": [
+        "Child"
+      ],
+      "primaryConcern": "Fever with lethargy",
+      "symptoms": [
+        "Fever/infection symptoms",
+        "Pediatric fever/crying/lethargy"
+      ],
+      "freeText": "Child has fever and is less responsive than usual.",
+      "onset": "Not clear",
+      "duration": "1 day",
+      "reportedSeverity": 7,
+      "trend": "Worsening",
+      "riskAnswers": {},
+      "vitals": {
+        "temperature": 39.1,
+        "pulse": 138,
+        "respiratoryRate": 30,
+        "consciousness": "Confused"
+      },
+      "history": {
+        "conditions": "Unknown",
+        "medications": "Unknown",
+        "allergies": "Not asked yet",
+        "previousEpisode": "Unknown",
+        "recentVisit": "Unknown"
+      },
+      "observations": [
+        "New observation: symptoms appear to be worsening while waiting.",
+        "New observation: symptoms appear to be worsening while waiting."
+      ],
+      "medicoLegal": false,
+      "status": "Waiting",
+      "currentPathway": "Pediatrics",
+      "assignedQueue": "Pediatric emergency review",
+      "waitingMins": 34,
+      "recommendation": {
+        "id": "REC-1788061948448",
+        "encounterId": "E-2002",
+        "level": 1,
+        "label": "Level 1 - Immediate Review",
+        "pathway": "Pediatrics",
+        "destination": "Pediatric emergency review",
+        "estimatedWait": 12,
+        "confidence": 0.82,
+        "resources": [
+          "Pediatric bed",
+          "Pediatric nurse"
+        ],
+        "reasons": [
+          "age-specific pediatric pathway",
+          "infection or isolation workflow signal",
+          "condition reported as worsening"
+        ],
+        "missingInfo": [
+          "oxygen saturation",
+          "allergy status"
+        ],
+        "uncertainty": [],
+        "humanReviewRequired": true,
+        "createdAt": "2026-08-30T03:52:28.449Z"
+      },
+      "journey": [
+        {
+          "time": "2026-08-30T03:52:28.448Z",
+          "event": "Reassessment requested and recommendation recalculated",
+          "actor": "Triage Nurse"
+        },
+        {
+          "time": "2026-08-30T03:51:41.692Z",
+          "event": "Reassessment requested and recommendation recalculated",
+          "actor": "Triage Nurse"
+        },
+        {
+          "time": "2026-08-30T03:10:00.000Z",
+          "event": "Encounter opened",
+          "actor": "Triage Nurse"
+        }
+      ],
+      "updatedAt": "2026-08-30T03:52:28.449Z"
+    },
+    {
+      "id": "E-2001",
+      "patientId": "P-1001",
+      "arrivalMode": "Pre-arrival call",
+      "arrivalStatus": "Waiting",
+      "speakerSource": "Family",
+      "language": "Hinglish",
+      "communicationLimitations": [],
+      "patientCategories": [
+        "Geriatric"
+      ],
+      "primaryConcern": "Breathing difficulty",
+      "symptoms": [
+        "Breathing difficulty",
+        "Chest discomfort",
+        "Weakness"
+      ],
+      "freeText": "Mere father ko afternoon se saans lene mein takleef hai aur chest mein heaviness bol rahe hain.",
+      "onset": "This afternoon",
+      "duration": "4 hours",
+      "reportedSeverity": 8,
+      "trend": "Worsening",
+      "riskAnswers": {},
+      "vitals": {
+        "spo2": 90,
+        "pulse": 112,
+        "bpSystolic": 154,
+        "bpDiastolic": 92,
+        "respiratoryRate": 28,
+        "painScore": 7,
+        "consciousness": "Alert"
+      },
+      "history": {
+        "conditions": "Unknown",
+        "medications": "Unknown",
+        "allergies": "Not asked yet",
+        "previousEpisode": "Unknown",
+        "recentVisit": "Unknown"
+      },
+      "observations": [
+        "New observation: symptoms appear to be worsening while waiting.",
+        "New observation: symptoms appear to be worsening while waiting."
+      ],
+      "medicoLegal": false,
+      "status": "Waiting",
+      "currentPathway": "Cardiac Review",
+      "assignedQueue": "ED priority cardiac review",
+      "waitingMins": 28,
+      "recommendation": {
+        "id": "REC-1788061963444",
+        "encounterId": "E-2001",
+        "level": 1,
+        "label": "Level 1 - Immediate Review",
+        "pathway": "Cardiac Review",
+        "destination": "ED priority cardiac review",
+        "estimatedWait": 16,
+        "confidence": 0.7799999999999999,
+        "resources": [
+          "ECG machine",
+          "Monitor",
+          "Emergency physician"
+        ],
+        "reasons": [
+          "reported chest or breathing-related concern",
+          "condition reported as worsening",
+          "high reported severity"
+        ],
+        "missingInfo": [
+          "allergy status"
+        ],
+        "uncertainty": [
+          "information provided by family"
+        ],
+        "humanReviewRequired": true,
+        "createdAt": "2026-08-30T03:52:43.444Z"
+      },
+      "journey": [
+        {
+          "time": "2026-08-30T03:52:43.444Z",
+          "event": "Reassessment requested and recommendation recalculated",
+          "actor": "Triage Nurse"
+        },
+        {
+          "time": "2026-08-30T03:52:42.572Z",
+          "event": "Reassessment requested and recommendation recalculated",
+          "actor": "Triage Nurse"
+        },
+        {
+          "time": "2026-08-30T03:10:00.000Z",
+          "event": "Encounter opened",
+          "actor": "Triage Nurse"
+        }
+      ],
+      "updatedAt": "2026-08-30T03:52:43.444Z"
+    },
+    {
+      "id": "E-2005",
+      "patientId": "P-1005",
+      "arrivalMode": "Walk-in",
+      "arrivalStatus": "Waiting",
+      "speakerSource": "Patient",
+      "language": "English",
+      "communicationLimitations": [],
+      "patientCategories": [
+        "Geriatric"
+      ],
+      "primaryConcern": "Sudden confusion and weakness",
+      "symptoms": [
+        "Confusion/altered behavior",
+        "Stroke-like symptoms"
+      ],
+      "freeText": "Family reports sudden speech difficulty and arm weakness.",
+      "onset": "Not clear",
+      "duration": "Unknown",
+      "reportedSeverity": 8,
+      "trend": "Worsening",
+      "riskAnswers": {},
+      "vitals": {
+        "pulse": 96,
+        "bpSystolic": 168,
+        "bpDiastolic": 94,
+        "consciousness": "Confused"
+      },
+      "history": {
+        "conditions": "Unknown",
+        "medications": "Unknown",
+        "allergies": "Not asked yet",
+        "previousEpisode": "Unknown",
+        "recentVisit": "Unknown"
+      },
+      "observations": [
+        "New observation: symptoms appear to be worsening while waiting.",
+        "New observation: symptoms appear to be worsening while waiting."
+      ],
+      "medicoLegal": false,
+      "status": "Waiting",
+      "currentPathway": "Stroke / Neuro Review",
+      "assignedQueue": "Neuro priority review",
+      "waitingMins": 25,
+      "recommendation": {
+        "id": "REC-1788061959332",
+        "encounterId": "E-2005",
+        "level": 1,
+        "label": "Level 1 - Immediate Review",
+        "pathway": "Stroke / Neuro Review",
+        "destination": "Neuro priority review",
+        "estimatedWait": 12,
+        "confidence": 0.82,
+        "resources": [
+          "Neuro review room",
+          "Imaging slot",
+          "Monitor"
+        ],
+        "reasons": [
+          "sudden neurological review signals",
+          "condition reported as worsening",
+          "high reported severity"
+        ],
+        "missingInfo": [
+          "oxygen saturation",
+          "allergy status"
+        ],
+        "uncertainty": [],
+        "humanReviewRequired": true,
+        "createdAt": "2026-08-30T03:52:39.332Z"
+      },
+      "journey": [
+        {
+          "time": "2026-08-30T03:52:39.332Z",
+          "event": "Reassessment requested and recommendation recalculated",
+          "actor": "Triage Nurse"
+        },
+        {
+          "time": "2026-08-30T03:52:36.841Z",
+          "event": "Reassessment requested and recommendation recalculated",
+          "actor": "Triage Nurse"
+        },
+        {
+          "time": "2026-08-30T03:10:00.000Z",
+          "event": "Encounter opened",
+          "actor": "Triage Nurse"
+        }
+      ],
+      "updatedAt": "2026-08-30T03:52:39.332Z"
+    },
+    {
+      "id": "E-1788071582219",
+      "patientId": "P-1788071582219",
+      "token": "C-0584",
+      "arrivalMode": "Pre-arrival call",
+      "arrivalStatus": "Waiting",
+      "speakerSource": "Family",
+      "language": "Hinglish",
+      "communicationLimitations": [],
+      "patientCategories": [
+        "Geriatric"
+      ],
+      "primaryConcern": "Chest discomfort",
+      "symptoms": [
+        "Chest discomfort",
+        "Breathing difficulty"
+      ],
+      "freeText": "Mere father ko afternoon se saans lene mein takleef hai aur chest mein heaviness bol rahe hain.",
+      "onset": "4 hours",
+      "duration": "4 hours",
+      "reportedSeverity": 8,
+      "trend": "Unknown",
+      "riskAnswers": {},
+      "vitals": {
+        "temperature": 37.2,
+        "pulse": 112,
+        "bpSystolic": 154,
+        "bpDiastolic": 92,
+        "spo2": 90,
+        "respiratoryRate": 28,
+        "painScore": 7,
+        "consciousness": "Alert",
+        "spo2Unavailable": false
+      },
+      "history": {
+        "conditions": "Hypertension",
+        "medications": "Lisinopril 10mg",
+        "allergies": "None known",
+        "previousEpisode": "Unknown",
+        "recentVisit": "None"
+      },
+      "observations": [
+        "Visible distress",
+        "Confusion",
+        "Patient diaphoretic upon arrival, family speaking."
+      ],
+      "medicoLegal": false,
+      "photoAttached": true,
+      "status": "Waiting",
+      "currentPathway": "Stroke / Neuro Review",
+      "assignedQueue": "Neuro priority review",
+      "waitingMins": 0,
+      "recommendation": {
+        "id": "REC-1788071582220",
+        "encounterId": "E-1788071582219",
+        "level": 1,
+        "label": "Level 1 - Immediate Review",
+        "pathway": "Stroke / Neuro Review",
+        "destination": "Neuro priority review",
+        "estimatedWait": 12,
+        "confidence": 0.7799999999999999,
+        "resources": [
+          "Neuro review room",
+          "Imaging slot",
+          "Monitor"
+        ],
+        "reasons": [
+          "reported chest or breathing-related concern",
+          "sudden neurological review signals",
+          "high reported severity"
+        ],
+        "missingInfo": [],
+        "uncertainty": [
+          "information provided by family"
+        ],
+        "humanReviewRequired": true,
+        "createdAt": "2026-08-30T06:33:02.220Z"
+      },
+      "journey": [
+        {
+          "time": "2026-08-30T06:33:02.219Z",
+          "event": "New encounter created from nurse wizard",
+          "actor": "Nurse (NUR-1042)"
+        }
+      ],
+      "updatedAt": "2026-08-30T06:33:02.220Z",
+      "attendingNurseId": "NUR-1042"
+    },
+    {
+      "id": "E-1788061950111",
+      "patientId": "P-1788061950111",
+      "arrivalMode": "Pre-arrival call",
+      "arrivalStatus": "Intake",
+      "speakerSource": "Family",
+      "language": "Hinglish",
+      "communicationLimitations": [],
+      "patientCategories": [
+        "Adult"
+      ],
+      "primaryConcern": "Chest discomfort",
+      "symptoms": [
+        "Chest pain/discomfort",
+        "Breathing difficulty",
+        "Weakness/fainting"
+      ],
+      "freeText": "Mere father ko chest heaviness hai, saans phool rahi hai, aur woh weak feel kar rahe hain.",
+      "onset": "",
+      "duration": "",
+      "reportedSeverity": 8,
+      "trend": "Unknown",
+      "riskAnswers": {},
+      "vitals": {
+        "consciousness": "Not recorded",
+        "unavailableReason": "Vitals not available yet"
+      },
+      "history": {
+        "conditions": "Unknown",
+        "medications": "Unknown",
+        "allergies": "Not asked yet",
+        "previousEpisode": "Unknown",
+        "recentVisit": "Unknown"
+      },
+      "observations": [],
+      "medicoLegal": false,
+      "status": "Escalated",
+      "currentPathway": "Resuscitation / Critical Care Bay",
+      "assignedQueue": "Critical care bay",
+      "waitingMins": 0,
+      "recommendation": {
+        "id": "REC-1788061950111",
+        "encounterId": "E-1788061950111",
+        "level": 1,
+        "label": "Level 1 - Immediate Review",
+        "pathway": "Cardiac Review",
+        "destination": "ED priority cardiac review",
+        "estimatedWait": 16,
+        "confidence": 0.6599999999999999,
+        "resources": [
+          "ECG machine",
+          "Monitor",
+          "Emergency physician"
+        ],
+        "reasons": [
+          "reported chest or breathing-related concern",
+          "high reported severity"
+        ],
+        "missingInfo": [
+          "consciousness level",
+          "oxygen saturation",
+          "pulse",
+          "onset time",
+          "allergy status"
+        ],
+        "uncertainty": [
+          "information provided by family",
+          "critical intake information incomplete"
+        ],
+        "humanReviewRequired": true,
+        "createdAt": "2026-08-30T03:52:30.111Z"
+      },
+      "journey": [
+        {
+          "time": "2026-08-30T03:52:58.790Z",
+          "event": "Escalated to critical review",
+          "actor": "Triage Nurse"
+        },
+        {
+          "time": "2026-08-30T03:52:58.069Z",
+          "event": "Escalated to critical review",
+          "actor": "Triage Nurse"
+        },
+        {
+          "time": "2026-08-30T03:52:57.810Z",
+          "event": "Escalated to critical review",
+          "actor": "Triage Nurse"
+        },
+        {
+          "time": "2026-08-30T03:52:56.397Z",
+          "event": "Escalated to critical review",
+          "actor": "Triage Nurse"
+        },
+        {
+          "time": "2026-08-30T03:52:30.111Z",
+          "event": "New encounter created from nurse wizard",
+          "actor": "Triage Nurse"
+        }
+      ],
+      "updatedAt": "2026-08-30T03:52:30.111Z"
+    },
+    {
+      "id": "E-2004",
+      "patientId": "P-1004",
+      "arrivalMode": "Walk-in",
+      "arrivalStatus": "Waiting",
+      "speakerSource": "Patient",
+      "language": "English",
+      "communicationLimitations": [
+        "Confused"
+      ],
+      "patientCategories": [],
+      "primaryConcern": "Ambiguous weakness",
+      "symptoms": [
+        "Weakness/fainting"
+      ],
+      "freeText": "I feel strange and weak. Cannot explain clearly.",
+      "onset": "Not clear",
+      "duration": "Unknown",
+      "reportedSeverity": 5,
+      "trend": "Unknown",
+      "riskAnswers": {
+        "contradiction": "Yes"
+      },
+      "vitals": {
+        "consciousness": "Not recorded",
+        "unavailableReason": "Vitals not available yet"
+      },
+      "history": {
+        "conditions": "Unknown",
+        "medications": "Unknown",
+        "allergies": "Not asked yet",
+        "previousEpisode": "Unknown",
+        "recentVisit": "Unknown"
+      },
+      "observations": [],
+      "medicoLegal": false,
+      "status": "Waiting",
+      "currentPathway": "Emergency General",
+      "assignedQueue": "ED priority queue",
+      "waitingMins": 37,
+      "recommendation": {
+        "id": "REC-1788061835713",
+        "encounterId": "E-2004",
+        "level": 2,
+        "label": "Level 2 - Very Urgent Review",
+        "pathway": "Emergency General",
+        "destination": "ED priority queue",
+        "estimatedWait": 20,
+        "confidence": 0.48,
+        "resources": [
+          "ED bed",
+          "Nurse review"
+        ],
+        "reasons": [
+          "conflicting information with risk signals"
+        ],
+        "missingInfo": [
+          "consciousness level",
+          "oxygen saturation",
+          "pulse",
+          "allergy status"
+        ],
+        "uncertainty": [
+          "communication limitation may reduce history reliability",
+          "conflicting patient/family information",
+          "critical intake information incomplete"
+        ],
+        "humanReviewRequired": true,
+        "createdAt": "2026-08-30T03:50:35.713Z"
+      },
+      "journey": [
+        {
+          "time": "2026-08-30T03:10:00.000Z",
+          "event": "Encounter opened",
+          "actor": "Triage Nurse"
+        }
+      ],
+      "updatedAt": "2026-08-30T03:30:00.000Z"
+    },
+    {
+      "id": "E-2009",
+      "patientId": "P-1017",
+      "arrivalMode": "Walk-in",
+      "arrivalStatus": "Waiting",
+      "speakerSource": "Patient",
+      "language": "Hindi",
+      "communicationLimitations": [],
+      "patientCategories": [
+        "Geriatric",
+        "Communication-impaired"
+      ],
+      "primaryConcern": "Fever and cough",
+      "symptoms": [
+        "Fever/infection symptoms",
+        "Breathing difficulty"
+      ],
+      "freeText": "Bukhar, khansi, aur saans phool rahi hai. History unclear.",
+      "onset": "Not clear",
+      "duration": "Unknown",
+      "reportedSeverity": 6,
+      "trend": "Unknown",
+      "riskAnswers": {},
+      "vitals": {
+        "temperature": 38.8,
+        "spo2": 91,
+        "pulse": 106,
+        "respiratoryRate": 25,
+        "consciousness": "Confused"
+      },
+      "history": {
+        "conditions": "Unknown",
+        "medications": "Unknown",
+        "allergies": "Not asked yet",
+        "previousEpisode": "Unknown",
+        "recentVisit": "Unknown"
+      },
+      "observations": [],
+      "medicoLegal": false,
+      "status": "Waiting",
+      "currentPathway": "Isolation / Infection Concern",
+      "assignedQueue": "ED priority queue",
+      "waitingMins": 31,
+      "recommendation": {
+        "id": "REC-1788061835714",
+        "encounterId": "E-2009",
+        "level": 2,
+        "label": "Level 2 - Very Urgent Review",
+        "pathway": "Isolation / Infection Concern",
+        "destination": "ED priority queue",
+        "estimatedWait": 20,
+        "confidence": 0.82,
+        "resources": [
+          "Isolation room",
+          "PPE station"
+        ],
+        "reasons": [
+          "infection or isolation workflow signal"
+        ],
+        "missingInfo": [
+          "allergy status"
+        ],
+        "uncertainty": [],
+        "humanReviewRequired": true,
+        "createdAt": "2026-08-30T03:50:35.714Z"
+      },
+      "journey": [
+        {
+          "time": "2026-08-30T03:10:00.000Z",
+          "event": "Encounter opened",
+          "actor": "Triage Nurse"
+        }
+      ],
+      "updatedAt": "2026-08-30T03:30:00.000Z"
+    },
+    {
+      "id": "E-2003",
+      "patientId": "P-1003",
+      "arrivalMode": "Walk-in",
+      "arrivalStatus": "Waiting",
+      "speakerSource": "Patient",
+      "language": "English",
+      "communicationLimitations": [],
+      "patientCategories": [
+        "Pregnant patient"
+      ],
+      "primaryConcern": "Pregnancy-related pain",
+      "symptoms": [
+        "Pregnancy-related concern",
+        "Abdominal pain"
+      ],
+      "freeText": "28 weeks pregnant, abdominal pain since morning. No direct diagnosis shown in prototype.",
+      "onset": "Not clear",
+      "duration": "Unknown",
+      "reportedSeverity": 6,
+      "trend": "Unknown",
+      "riskAnswers": {},
+      "vitals": {
+        "pulse": 102,
+        "bpSystolic": 136,
+        "bpDiastolic": 86,
+        "painScore": 6,
+        "consciousness": "Alert"
+      },
+      "history": {
+        "conditions": "Unknown",
+        "medications": "Unknown",
+        "allergies": "Not asked yet",
+        "previousEpisode": "Unknown",
+        "recentVisit": "Unknown"
+      },
+      "observations": [],
+      "medicoLegal": false,
+      "status": "Waiting",
+      "currentPathway": "Obstetrics",
+      "assignedQueue": "OB emergency review",
+      "waitingMins": 25,
+      "recommendation": {
+        "id": "REC-1788061835713",
+        "encounterId": "E-2003",
+        "level": 2,
+        "label": "Level 2 - Very Urgent Review",
+        "pathway": "Obstetrics",
+        "destination": "OB emergency review",
+        "estimatedWait": 20,
+        "confidence": 0.82,
+        "resources": [
+          "OB review room",
+          "Obstetrician on call"
+        ],
+        "reasons": [
+          "pregnancy-related routing context"
+        ],
+        "missingInfo": [
+          "oxygen saturation",
+          "allergy status"
+        ],
+        "uncertainty": [],
+        "humanReviewRequired": true,
+        "createdAt": "2026-08-30T03:50:35.713Z"
+      },
+      "journey": [
+        {
+          "time": "2026-08-30T03:10:00.000Z",
+          "event": "Encounter opened",
+          "actor": "Triage Nurse"
+        }
+      ],
+      "updatedAt": "2026-08-30T03:30:00.000Z"
+    },
+    {
+      "id": "E-2010",
+      "patientId": "P-1018",
+      "arrivalMode": "Walk-in",
+      "arrivalStatus": "Waiting",
+      "speakerSource": "Family",
+      "language": "Marathi",
+      "communicationLimitations": [],
+      "patientCategories": [
+        "Infant"
+      ],
+      "primaryConcern": "Infant crying and fever",
+      "symptoms": [
+        "Pediatric fever/crying/lethargy",
+        "Fever/infection symptoms"
+      ],
+      "freeText": "Baalak satat radat aahe, dudh kami ghet aahe, tap aahe.",
+      "onset": "Not clear",
+      "duration": "Unknown",
+      "reportedSeverity": 7,
+      "trend": "Unknown",
+      "riskAnswers": {},
+      "vitals": {
+        "temperature": 38.9,
+        "pulse": 150,
+        "consciousness": "Alert"
+      },
+      "history": {
+        "conditions": "Unknown",
+        "medications": "Unknown",
+        "allergies": "Not asked yet",
+        "previousEpisode": "Unknown",
+        "recentVisit": "Unknown"
+      },
+      "observations": [],
+      "medicoLegal": false,
+      "status": "Waiting",
+      "currentPathway": "Pediatrics",
+      "assignedQueue": "Pediatric emergency review",
+      "waitingMins": 14,
+      "recommendation": {
+        "id": "REC-1788061835715",
+        "encounterId": "E-2010",
+        "level": 2,
+        "label": "Level 2 - Very Urgent Review",
+        "pathway": "Pediatrics",
+        "destination": "Pediatric emergency review",
+        "estimatedWait": 20,
+        "confidence": 0.7799999999999999,
+        "resources": [
+          "Pediatric bed",
+          "Pediatric nurse"
+        ],
+        "reasons": [
+          "age-specific pediatric pathway",
+          "infection or isolation workflow signal"
+        ],
+        "missingInfo": [
+          "oxygen saturation",
+          "allergy status"
+        ],
+        "uncertainty": [
+          "information provided by family"
+        ],
+        "humanReviewRequired": true,
+        "createdAt": "2026-08-30T03:50:35.715Z"
+      },
+      "journey": [
+        {
+          "time": "2026-08-30T03:10:00.000Z",
+          "event": "Encounter opened",
+          "actor": "Triage Nurse"
+        }
+      ],
+      "updatedAt": "2026-08-30T03:30:00.000Z"
+    },
+    {
+      "id": "E-2007",
+      "patientId": "P-1011",
+      "arrivalMode": "Walk-in",
+      "arrivalStatus": "Waiting",
+      "speakerSource": "Patient",
+      "language": "English",
+      "communicationLimitations": [],
+      "patientCategories": [],
+      "primaryConcern": "Allergic reaction",
+      "symptoms": [
+        "Allergic reaction",
+        "Breathing difficulty"
+      ],
+      "freeText": "Swelling on lips with rash after food. Breathing feels tight.",
+      "onset": "Not clear",
+      "duration": "Unknown",
+      "reportedSeverity": 8,
+      "trend": "Unknown",
+      "riskAnswers": {},
+      "vitals": {
+        "pulse": 118,
+        "spo2": 93,
+        "respiratoryRate": 26,
+        "consciousness": "Alert"
+      },
+      "history": {
+        "conditions": "Unknown",
+        "medications": "Unknown",
+        "allergies": "Not asked yet",
+        "previousEpisode": "Unknown",
+        "recentVisit": "Unknown"
+      },
+      "observations": [],
+      "medicoLegal": false,
+      "status": "Waiting",
+      "currentPathway": "Isolation / Infection Concern",
+      "assignedQueue": "ED priority queue",
+      "waitingMins": 5,
+      "recommendation": {
+        "id": "REC-1788061835714",
+        "encounterId": "E-2007",
+        "level": 2,
+        "label": "Level 2 - Very Urgent Review",
+        "pathway": "Isolation / Infection Concern",
+        "destination": "ED priority queue",
+        "estimatedWait": 20,
+        "confidence": 0.82,
+        "resources": [
+          "Isolation room",
+          "PPE station"
+        ],
+        "reasons": [
+          "infection or isolation workflow signal",
+          "high reported severity"
+        ],
+        "missingInfo": [
+          "allergy status"
+        ],
+        "uncertainty": [],
+        "humanReviewRequired": true,
+        "createdAt": "2026-08-30T03:50:35.714Z"
+      },
+      "journey": [
+        {
+          "time": "2026-08-30T03:10:00.000Z",
+          "event": "Encounter opened",
+          "actor": "Triage Nurse"
+        }
+      ],
+      "updatedAt": "2026-08-30T03:30:00.000Z"
+    },
+    {
+      "id": "E-2006",
+      "patientId": "P-1008",
+      "arrivalMode": "Walk-in",
+      "arrivalStatus": "Waiting",
+      "speakerSource": "Patient",
+      "language": "English",
+      "communicationLimitations": [],
+      "patientCategories": [],
+      "primaryConcern": "Road traffic accident",
+      "symptoms": [
+        "Injury/trauma",
+        "Bleeding"
+      ],
+      "freeText": "Bike accident, visible leg injury and bleeding.",
+      "onset": "Not clear",
+      "duration": "Unknown",
+      "reportedSeverity": 7,
+      "trend": "Unknown",
+      "riskAnswers": {},
+      "vitals": {
+        "pulse": 122,
+        "bpSystolic": 100,
+        "bpDiastolic": 68,
+        "painScore": 9,
+        "consciousness": "Alert"
+      },
+      "history": {
+        "conditions": "Unknown",
+        "medications": "Unknown",
+        "allergies": "Not asked yet",
+        "previousEpisode": "Unknown",
+        "recentVisit": "Unknown"
+      },
+      "observations": [
+        "Visible bleeding",
+        "Mobility limitation"
+      ],
+      "medicoLegal": true,
+      "status": "Waiting",
+      "currentPathway": "Trauma",
+      "assignedQueue": "Trauma bay queue",
+      "waitingMins": 4,
+      "recommendation": {
+        "id": "REC-1788061835714",
+        "encounterId": "E-2006",
+        "level": 2,
+        "label": "Level 2 - Very Urgent Review",
+        "pathway": "Trauma",
+        "destination": "Trauma bay queue",
+        "estimatedWait": 24,
+        "confidence": 0.82,
+        "resources": [
+          "Trauma bay",
+          "Stretcher",
+          "Procedure kit"
+        ],
+        "reasons": [
+          "medico-legal trauma workflow"
+        ],
+        "missingInfo": [
+          "oxygen saturation",
+          "allergy status"
+        ],
+        "uncertainty": [],
+        "humanReviewRequired": true,
+        "createdAt": "2026-08-30T03:50:35.714Z"
+      },
+      "journey": [
+        {
+          "time": "2026-08-30T03:10:00.000Z",
+          "event": "Encounter opened",
+          "actor": "Triage Nurse"
+        }
+      ],
+      "updatedAt": "2026-08-30T03:30:00.000Z"
+    },
+    {
+      "id": "E-2008",
+      "patientId": "P-1019",
+      "arrivalMode": "Walk-in",
+      "arrivalStatus": "Waiting",
+      "speakerSource": "Patient",
+      "language": "English",
+      "communicationLimitations": [],
+      "patientCategories": [],
+      "primaryConcern": "Minor sports injury",
+      "symptoms": [
+        "Injury/trauma"
+      ],
+      "freeText": "Minor ankle sprain after football. Walking with support.",
+      "onset": "Not clear",
+      "duration": "Unknown",
+      "reportedSeverity": 3,
+      "trend": "Unknown",
+      "riskAnswers": {},
+      "vitals": {
+        "pulse": 84,
+        "bpSystolic": 116,
+        "bpDiastolic": 76,
+        "painScore": 4,
+        "consciousness": "Alert"
+      },
+      "history": {
+        "conditions": "Unknown",
+        "medications": "Unknown",
+        "allergies": "Not asked yet",
+        "previousEpisode": "Unknown",
+        "recentVisit": "Unknown"
+      },
+      "observations": [],
+      "medicoLegal": false,
+      "status": "Waiting",
+      "currentPathway": "Trauma",
+      "assignedQueue": "Trauma bay queue",
+      "waitingMins": 44,
+      "recommendation": {
+        "id": "REC-1788061835714",
+        "encounterId": "E-2008",
+        "level": 3,
+        "label": "Level 3 - Urgent Review",
+        "pathway": "Trauma",
+        "destination": "Trauma bay queue",
+        "estimatedWait": 40,
+        "confidence": 0.82,
+        "resources": [
+          "Trauma bay",
+          "Stretcher",
+          "Procedure kit"
+        ],
+        "reasons": [
+          "injury or trauma workflow"
+        ],
+        "missingInfo": [
+          "oxygen saturation",
+          "allergy status"
+        ],
+        "uncertainty": [],
+        "humanReviewRequired": true,
+        "createdAt": "2026-08-30T03:50:35.714Z"
+      },
+      "journey": [
+        {
+          "time": "2026-08-30T03:10:00.000Z",
+          "event": "Encounter opened",
+          "actor": "Triage Nurse"
+        }
+      ],
+      "updatedAt": "2026-08-30T03:30:00.000Z"
+    }
+  ],
+  "alerts": [
+    {
+      "id": "A-1788061978790",
+      "encounterId": "E-1788061950111",
+      "level": "Critical",
+      "title": "Patient escalated",
+      "detail": "Nurse requested safer immediate review.",
+      "createdAt": "2026-08-30T03:52:58.790Z",
+      "acknowledged": false
+    },
+    {
+      "id": "A-1788061978069",
+      "encounterId": "E-1788061950111",
+      "level": "Critical",
+      "title": "Patient escalated",
+      "detail": "Nurse requested safer immediate review.",
+      "createdAt": "2026-08-30T03:52:58.069Z",
+      "acknowledged": false
+    },
+    {
+      "id": "A-1788061977811",
+      "encounterId": "E-1788061950111",
+      "level": "Critical",
+      "title": "Patient escalated",
+      "detail": "Nurse requested safer immediate review.",
+      "createdAt": "2026-08-30T03:52:57.810Z",
+      "acknowledged": false
+    },
+    {
+      "id": "A-1788061976397",
+      "encounterId": "E-1788061950111",
+      "level": "Critical",
+      "title": "Patient escalated",
+      "detail": "Nurse requested safer immediate review.",
+      "createdAt": "2026-08-30T03:52:56.397Z",
+      "acknowledged": false
+    },
+    {
+      "id": "A1",
+      "encounterId": "E-2004",
+      "level": "Warning",
+      "title": "Ambiguous intake",
+      "detail": "Weakness case has missing vitals and contradictory history.",
+      "createdAt": "2026-08-30T03:22:00.000Z",
+      "acknowledged": false
+    },
+    {
+      "id": "A2",
+      "encounterId": "E-2005",
+      "level": "Critical",
+      "title": "Waiting patient needs review",
+      "detail": "Sudden neuro review signals with worsening trend.",
+      "createdAt": "2026-08-30T03:26:00.000Z",
+      "acknowledged": false
+    },
+    {
+      "id": "A3",
+      "level": "Warning",
+      "title": "Pediatric beds constrained",
+      "detail": "Pediatric pathway has limited available beds.",
+      "createdAt": "2026-08-30T03:28:00.000Z",
+      "acknowledged": false
+    }
+  ],
+  "audit": [
+    {
+      "id": "AU-1788071582220",
+      "actor": "Nurse (NUR-1042)",
+      "action": "ENCOUNTER_CREATED",
+      "target": "E-1788071582219",
+      "detail": "Rajesh Kumar added through nurse intake (Token C-0584).",
+      "createdAt": "2026-08-30T06:33:02.220Z"
+    },
+    {
+      "id": "AU-1788071539381",
+      "actor": "Nurse (NUR-1042)",
+      "action": "NURSE_LOGIN",
+      "target": "NUR-1042",
+      "detail": "Nurse logged into mobile triage workspace.",
+      "createdAt": "2026-08-30T06:32:19.381Z"
+    },
+    {
+      "id": "AU-1788071450309",
+      "actor": "Nurse (NUR-1042)",
+      "action": "NURSE_LOGIN",
+      "target": "NUR-1042",
+      "detail": "Nurse logged into mobile triage workspace.",
+      "createdAt": "2026-08-30T06:30:50.309Z"
+    },
+    {
+      "id": "AU-1788071427266",
+      "actor": "Nurse (NUR-1042)",
+      "action": "NURSE_LOGIN",
+      "target": "NUR-1042",
+      "detail": "Nurse logged into mobile triage workspace.",
+      "createdAt": "2026-08-30T06:30:27.266Z"
+    },
+    {
+      "id": "AU-1788061978790",
+      "actor": "Triage Nurse",
+      "action": "PATIENT_ESCALATED",
+      "target": "E-1788061950111",
+      "detail": "Nurse requested safer immediate review.",
+      "createdAt": "2026-08-30T03:52:58.790Z"
+    },
+    {
+      "id": "AU-1788061978069",
+      "actor": "Triage Nurse",
+      "action": "PATIENT_ESCALATED",
+      "target": "E-1788061950111",
+      "detail": "Nurse requested safer immediate review.",
+      "createdAt": "2026-08-30T03:52:58.069Z"
+    },
+    {
+      "id": "AU-1788061977811",
+      "actor": "Triage Nurse",
+      "action": "PATIENT_ESCALATED",
+      "target": "E-1788061950111",
+      "detail": "Nurse requested safer immediate review.",
+      "createdAt": "2026-08-30T03:52:57.811Z"
+    },
+    {
+      "id": "AU-1788061976397",
+      "actor": "Triage Nurse",
+      "action": "PATIENT_ESCALATED",
+      "target": "E-1788061950111",
+      "detail": "Nurse requested safer immediate review.",
+      "createdAt": "2026-08-30T03:52:56.397Z"
+    },
+    {
+      "id": "AU-1788061963444",
+      "actor": "Triage Nurse",
+      "action": "REASSESSMENT_REQUESTED",
+      "target": "E-2001",
+      "detail": "New observation: symptoms appear to be worsening while waiting.",
+      "createdAt": "2026-08-30T03:52:43.444Z"
+    },
+    {
+      "id": "AU-1788061962572",
+      "actor": "Triage Nurse",
+      "action": "REASSESSMENT_REQUESTED",
+      "target": "E-2001",
+      "detail": "New observation: symptoms appear to be worsening while waiting.",
+      "createdAt": "2026-08-30T03:52:42.572Z"
+    },
+    {
+      "id": "AU-1788061959332",
+      "actor": "Triage Nurse",
+      "action": "REASSESSMENT_REQUESTED",
+      "target": "E-2005",
+      "detail": "New observation: symptoms appear to be worsening while waiting.",
+      "createdAt": "2026-08-30T03:52:39.332Z"
+    },
+    {
+      "id": "AU-1788061956842",
+      "actor": "Triage Nurse",
+      "action": "REASSESSMENT_REQUESTED",
+      "target": "E-2005",
+      "detail": "New observation: symptoms appear to be worsening while waiting.",
+      "createdAt": "2026-08-30T03:52:36.842Z"
+    },
+    {
+      "id": "AU-1788061950111",
+      "actor": "Triage Nurse",
+      "action": "ENCOUNTER_CREATED",
+      "target": "E-1788061950111",
+      "detail": "New Patient added through nurse intake.",
+      "createdAt": "2026-08-30T03:52:30.111Z"
+    },
+    {
+      "id": "AU-1788061948449",
+      "actor": "Triage Nurse",
+      "action": "REASSESSMENT_REQUESTED",
+      "target": "E-2002",
+      "detail": "New observation: symptoms appear to be worsening while waiting.",
+      "createdAt": "2026-08-30T03:52:28.449Z"
+    },
+    {
+      "id": "AU-1788061901692",
+      "actor": "Triage Nurse",
+      "action": "REASSESSMENT_REQUESTED",
+      "target": "E-2002",
+      "detail": "New observation: symptoms appear to be worsening while waiting.",
+      "createdAt": "2026-08-30T03:51:41.692Z"
+    },
+    {
+      "id": "AU1",
+      "actor": "System",
+      "action": "DEMO_RESET",
+      "target": "CityCare",
+      "detail": "Seeded CityCare Medical Centre with synthetic data.",
+      "createdAt": "2026-08-30T02:30:00.000Z"
+    },
+    {
+      "id": "AU2",
+      "actor": "Triage Nurse",
+      "action": "RECOMMENDATION_OVERRIDDEN",
+      "target": "E-2008",
+      "detail": "Moved minor sports injury to Fast Track after nurse review.",
+      "createdAt": "2026-08-30T03:16:00.000Z"
+    },
+    {
+      "id": "AU3",
+      "actor": "System",
+      "action": "REASSESSMENT_ALERT",
+      "target": "E-2005",
+      "detail": "Generated reassessment alert for worsening waiting patient.",
+      "createdAt": "2026-08-30T03:26:00.000Z"
+    }
+  ],
+  "routingPolicy": {
+    "safetyBias": 78,
+    "waitingTimeWeight": 42,
+    "congestionWeight": 55,
+    "uncertaintyEscalation": 72
+  },
+  "simulation": {
+    "baselineMedianWait": 58,
+    "dynamicMedianWait": 36,
+    "baselineHighRiskDelay": 22,
+    "dynamicHighRiskDelay": 8,
+    "overtriagePressure": 64,
+    "reassessmentsToday": 13
+  },
+  "nurseSession": {
+    "rollNumber": "NUR-1042",
+    "name": "Nurse (NUR-1042)",
+    "hospitalName": "CityCare Medical Centre",
+    "department": "Emergency Department",
+    "loggedInAt": "2026-08-30T06:32:19.381Z"
+  }
+}
