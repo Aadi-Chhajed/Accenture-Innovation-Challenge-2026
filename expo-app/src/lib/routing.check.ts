@@ -68,9 +68,25 @@ const minor = calculateRecommendation(
 );
 assert.strictEqual(minor.pathway, "Fast Track / Minor Care", `minor case should be Fast Track, got ${minor.pathway}`);
 
+// 6. Geriatric-specific vital thresholds: a 37.9°C fever with no other symptoms
+//    should NOT read as urgent for an adult, but must for a geriatric patient
+//    (blunted febrile response can mask serious illness). Same vitals, two ages.
+const adultMildFever = calculateRecommendation(
+  make({ patientCategories: [], primaryConcern: "feels a bit warm", vitals: { consciousness: "Alert", temperature: 37.9 } }),
+  resources, policy
+);
+const geriatricMildFever = calculateRecommendation(
+  make({ patientCategories: ["Geriatric"], primaryConcern: "feels a bit warm", vitals: { consciousness: "Alert", temperature: 37.9 } }),
+  resources, policy
+);
+assert.ok(adultMildFever.level >= 3, `adult 37.9°C should stay non-urgent (>=3), got ${adultMildFever.level}`);
+assert.ok(geriatricMildFever.level <= 2, `geriatric 37.9°C must escalate (<=2), got ${geriatricMildFever.level}`);
+
 console.log("routing checks passed:");
 console.log("  chest+burn      ->", chestAndBurn.pathway, "L" + chestAndBurn.level);
 console.log("  trauma only     ->", traumaOnly.pathway, "L" + traumaOnly.level);
 console.log("  unresponsive    ->", critical.pathway, "L" + critical.level);
 console.log("  stacked signals -> L" + stacked.level, "(capped)");
 console.log("  minor case      ->", minor.pathway, "L" + minor.level);
+console.log("  adult 37.9°C    -> L" + adultMildFever.level, "(non-urgent)");
+console.log("  geriatric 37.9°C-> L" + geriatricMildFever.level, geriatricMildFever.pathway, "(escalated)");

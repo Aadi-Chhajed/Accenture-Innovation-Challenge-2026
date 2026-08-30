@@ -1,5 +1,18 @@
 import type { Encounter, Recommendation, Resource, RoutingPolicy, UrgencyLevel } from "./types";
 
+// Maximum minutes a patient at each urgency level should sit in the waiting
+// queue before the system must proactively flag it, independent of anything
+// a nurse chooses to do. This is what the queue monitor in store.tsx checks
+// against on every tick — kept here, next to the level definitions, as the
+// single place that defines what "safe" means per level.
+export const SAFE_WAIT_THRESHOLD_MINUTES: Record<UrgencyLevel, number> = {
+  1: 0,
+  2: 15,
+  3: 45,
+  4: 90,
+  5: 180,
+};
+
 const levelLabels: Record<UrgencyLevel, string> = {
   1: "Level 1 - Immediate Resuscitation",
   2: "Level 2 - Very Urgent Review",
@@ -162,6 +175,32 @@ export function calculateRecommendation(
     // Pediatric care is delivered in the pediatric area regardless of the
     // presenting complaint, so it wins ties against same-acuity adult pathways.
     proposePathway(isPediatricSevere ? 2 : 3, "Pediatrics", "Pediatric emergency review");
+  }
+
+  // 8b. GERIATRIC PHYSIOLOGICAL DANGER FLAGS (numeric vital thresholds distinct
+  // from the adult/pediatric ones above). Elderly patients often present with a
+  // blunted febrile and tachycardic response — a fever or heart rate that would
+  // look unremarkable in an adult can signal serious illness at this age. Using
+  // one adult-calibrated cutoff for every age group is exactly the silent-safety
+  // gap the routing spec warns about, so this uses its own lower thresholds
+  // rather than reusing the pediatric or default ones.
+  if (encounter.patientCategories.includes("Geriatric")) {
+    const geriatricDanger =
+      (encounter.vitals.temperature != null && encounter.vitals.temperature >= 37.8) ||
+      (encounter.vitals.pulse != null && encounter.vitals.pulse >= 110) ||
+      (encounter.vitals.spo2 != null && encounter.vitals.spo2 < 92);
+
+    if (geriatricDanger) {
+      geriatricAtypicalFlag = true;
+      if (pathway === "Emergency General") {
+        proposePathway(2, "Isolation / Infection Concern", "Isolation review area");
+      } else {
+        // A more specific pathway already matched (e.g. Cardiac, Stroke) — keep
+        // it, just make sure the acuity reflects the geriatric danger signal.
+        level = Math.min(level, 2);
+      }
+      reasons.push("geriatric vital-sign threshold triggered (blunted febrile/tachycardic response can mask serious illness in this age group)");
+    }
   }
 
   // 9. GERIATRIC ATYPICAL PRESENTATION (LEVEL 2/3)

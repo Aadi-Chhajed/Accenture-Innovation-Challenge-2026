@@ -9,6 +9,7 @@ import { SplashScreen } from "./src/screens/SplashScreen";
 import { NurseLoginScreen } from "./src/screens/NurseLoginScreen";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
 import { AlertsScreen } from "./src/screens/AlertsScreen";
+import { SimulationScreen } from "./src/screens/SimulationScreen";
 import { OnboardingWizard, type WizardData } from "./src/screens/OnboardingWizard";
 import { AIAnalyzingScreen } from "./src/screens/AIAnalyzingScreen";
 import { AIRecommendationScreen } from "./src/screens/AIRecommendationScreen";
@@ -23,6 +24,7 @@ type Screen =
   | "login"
   | "dashboard"
   | "alerts"
+  | "more"
   | "onboarding"
   | "analyzing"
   | "recommendation"
@@ -48,6 +50,8 @@ function Root() {
     } else if (tab === "drafts") {
       setDashboardFilter("Drafts");
       setScreen("dashboard");
+    } else if (tab === "more") {
+      setScreen("more");
     } else {
       setDashboardFilter("All");
       setScreen("dashboard");
@@ -84,6 +88,10 @@ function Root() {
         }}
       />
     );
+  }
+
+  if (screen === "more") {
+    return <SimulationScreen onNavigateTab={handleNavigateTab} />;
   }
 
   if (screen === "onboarding") {
