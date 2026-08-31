@@ -16,6 +16,7 @@ import * as ImagePicker from "expo-image-picker";
 import { TopAppBar } from "../components/TopAppBar";
 import { symptomOptions } from "../lib/pathways";
 import { extractFromNarrative, isAiConfigured, aiModelLabel, type AiExtraction } from "../lib/ai";
+import { VoiceCapture } from "../components/VoiceCapture";
 import type { DraftEncounter, Encounter, Patient, Vitals } from "../lib/types";
 
 export type WizardData = Partial<Encounter> & {
@@ -575,19 +576,23 @@ export function OnboardingWizard({
               <View>
                 <View className="flex-row items-center justify-between mb-1.5">
                   <FieldLabel>What was said</FieldLabel>
-                  <Pressable
-                    onPress={() =>
+                  <VoiceCapture
+                    language={data.language}
+                    onTranscript={(text) => {
+                      // Append rather than overwrite: a nurse may record several
+                      // times, and losing an earlier statement would be a data
+                      // loss the nurse can't recover.
+                      const existing = (data.freeText ?? "").trim();
+                      const merged = existing ? existing + " " + text : text;
+                      update({ freeText: merged, transcript: merged });
+                    }}
+                    onSampleFallback={() =>
                       update({
                         freeText: voiceSamples[data.language ?? "English"],
                         transcript: voiceSamples[data.language ?? "English"],
                       })
                     }
-                    hitSlop={8}
-                    className="flex-row items-center gap-1 min-h-[32px]"
-                  >
-                    <MaterialIcons name="mic" size={16} color="#3525cd" />
-                    <Text className="font-label-caps text-label-caps text-primary">Simulate voice</Text>
-                  </Pressable>
+                  />
                 </View>
                 <TextInput
                   className="bg-surface-container-low rounded-lg px-3 py-3 font-body-lg text-body-lg text-on-surface"

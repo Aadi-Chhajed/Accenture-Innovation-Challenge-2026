@@ -104,7 +104,7 @@ export type AiExtraction = {
   notes?: string;
 };
 
-async function callModel(
+export async function callModel(
   system: string,
   userText: string,
   tool: { name: string; description: string; input_schema: Record<string, unknown> }

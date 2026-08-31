@@ -30,7 +30,8 @@
           "photosPermission": "PatientTriage.ai uses photos only to attach a visible finding to a triage encounter.",
           "cameraPermission": "PatientTriage.ai uses the camera only to capture a patient or injury photo for this triage encounter."
         }
-      ]
+      ],
+      "expo-audio"
     ]
   }
 }

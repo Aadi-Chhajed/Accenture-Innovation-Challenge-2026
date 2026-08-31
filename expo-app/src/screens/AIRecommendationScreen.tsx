@@ -8,6 +8,13 @@ import { ReassessModal } from "../components/ReassessModal";
 import { useAppDispatch, useAppState } from "../lib/store";
 import { urgencyStyles } from "../lib/urgency";
 import { reviewRecommendation, isAiConfigured, type AiReview } from "../lib/ai";
+import {
+  analyzeHolistic,
+  analyzePriorRecord,
+  findSimilarEncounters,
+  type HolisticAnalysis,
+  type PriorRecordAnalysis,
+} from "../lib/aiClinical";
 
 // Ported from stitch_patienttriage.ai_nurse_portal/ai_recommendation_result/code.html
 export function AIRecommendationScreen({
@@ -27,6 +34,9 @@ export function AIRecommendationScreen({
   const [reassessOpen, setReassessOpen] = useState(false);
   const [aiReview, setAiReview] = useState<AiReview | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
+  const [holistic, setHolistic] = useState<HolisticAnalysis | null>(null);
+  const [prior, setPrior] = useState<PriorRecordAnalysis | null>(null);
+  const [deepBusy, setDeepBusy] = useState(false);
 
   const encounter = state.encounters.find((e) => e.id === encounterId);
   const patient = encounter ? state.patients.find((p) => p.id === encounter.patientId) : undefined;
@@ -54,6 +64,53 @@ export function AIRecommendationScreen({
       .finally(() => {
         if (!cancelled) setAiBusy(false);
       });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [encounterId]);
+
+  // Deep situational analysis: prior-record comparison, similar-case retrieval,
+  // then a holistic read of the whole picture. Runs after the rule-based
+  // recommendation is already on screen and never gates it. Also stays BELOW
+  // the early return guard concern by living above it (see note on the hook
+  // ordering rule in the effect above).
+  useEffect(() => {
+    if (!isAiConfigured() || !encounter || !patient) return;
+    let cancelled = false;
+    setDeepBusy(true);
+
+    const beds = state.resources.filter((r) => r.category === "Beds").reduce((n, r) => n + r.available, 0);
+    const constrained = state.resources.filter((r) => r.status !== "Available").map((r) => r.name).join(", ") || "none";
+    const context = [
+      "Mode: " + state.hospital.currentMode,
+      "Patients waiting: " + state.encounters.filter((e) => e.status === "Waiting").length,
+      "Beds available: " + beds,
+      "Constrained: " + constrained,
+    ].join(" | ");
+
+    const similar = findSimilarEncounters(encounter, state.encounters, state.patients, 3);
+
+    analyzePriorRecord(patient, encounter)
+      .then((p) => {
+        if (!cancelled) setPrior(p);
+        return analyzeHolistic({
+          encounter,
+          patient,
+          recommendation: encounter.recommendation,
+          priorAnalysis: p,
+          similarCases: similar,
+          hospitalContext: context,
+        });
+      })
+      .then((h) => {
+        if (!cancelled) setHolistic(h);
+      })
+      .catch((err) => console.warn("[ai] deep analysis failed:", err))
+      .finally(() => {
+        if (!cancelled) setDeepBusy(false);
+      });
+
     return () => {
       cancelled = true;
     };
@@ -201,6 +258,105 @@ export function AIRecommendationScreen({
               </>
             ) : (
               <Text className="font-body-md text-body-md text-on-surface-variant">Reviewing against hospital state…</Text>
+            )}
+          </View>
+        )}
+
+        {prior && (
+          <View className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-5 gap-3">
+            <View className="flex-row items-center gap-2">
+              <MaterialIcons name="history" size={18} color="#3525cd" />
+              <Text className="font-headline-md text-headline-md text-on-surface">PRIOR RECORD</Text>
+              {prior.isRepresentation && (
+                <View className="px-2 py-0.5 rounded-md bg-error-container">
+                  <Text className="font-label-caps text-label-caps text-on-error-container">RE-PRESENTATION</Text>
+                </View>
+              )}
+            </View>
+            <Text className="font-body-md text-body-md text-on-surface">{prior.summary}</Text>
+            {prior.representationConcern ? (
+              <Text className="font-body-md text-body-md text-error">{prior.representationConcern}</Text>
+            ) : null}
+            {prior.changedSinceLastVisit.length > 0 && (
+              <View className="gap-1">
+                <Text className="font-label-caps text-label-caps text-on-surface-variant">CHANGED SINCE LAST VISIT</Text>
+                {prior.changedSinceLastVisit.map((c, i) => (
+                  <Text key={i} className="font-body-md text-body-md text-on-surface">• {c}</Text>
+                ))}
+              </View>
+            )}
+            {prior.relevantRisks.length > 0 && (
+              <View className="gap-1">
+                <Text className="font-label-caps text-label-caps text-on-surface-variant">RELEVANT PRIOR RISKS</Text>
+                {prior.relevantRisks.map((r, i) => (
+                  <Text key={i} className="font-body-md text-body-md text-on-surface">• {r}</Text>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {(deepBusy || holistic) && (
+          <View className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-5 gap-3">
+            <View className="flex-row items-center gap-2">
+              <MaterialIcons name="psychology" size={18} color="#3525cd" />
+              <Text className="font-headline-md text-headline-md text-on-surface">SITUATIONAL ANALYSIS</Text>
+              {deepBusy && <ActivityIndicator size="small" color="#3525cd" />}
+            </View>
+
+            {holistic ? (
+              <>
+                {holistic.atypicalPresentationWarning ? (
+                  <View className="bg-error-container/40 border border-error/20 rounded-lg p-3 gap-1">
+                    <View className="flex-row items-center gap-1">
+                      <MaterialIcons name="warning" size={14} color="#93000a" />
+                      <Text className="font-label-caps text-label-caps text-on-error-container">ATYPICAL PRESENTATION RISK</Text>
+                    </View>
+                    <Text className="font-body-md text-body-md text-on-surface">{holistic.atypicalPresentationWarning}</Text>
+                  </View>
+                ) : null}
+
+                <Text className="font-body-md text-body-md text-on-surface">{holistic.overallAssessment}</Text>
+
+                {holistic.riskssMissedByRules.length > 0 && (
+                  <View className="gap-1">
+                    <Text className="font-label-caps text-label-caps text-on-surface-variant">RULES MAY HAVE MISSED</Text>
+                    {holistic.riskssMissedByRules.map((r, i) => (
+                      <Text key={i} className="font-body-md text-body-md text-on-surface">• {r}</Text>
+                    ))}
+                  </View>
+                )}
+
+                {holistic.recommendedNextActions.length > 0 && (
+                  <View className="gap-1">
+                    <Text className="font-label-caps text-label-caps text-primary">SUGGESTED NEXT ACTIONS</Text>
+                    {holistic.recommendedNextActions.map((a, i) => (
+                      <Text key={i} className="font-body-md text-body-md text-on-surface">• {a}</Text>
+                    ))}
+                  </View>
+                )}
+
+                {holistic.precedentInsight ? (
+                  <View className="gap-1">
+                    <Text className="font-label-caps text-label-caps text-on-surface-variant">SIMILAR PAST CASES</Text>
+                    <Text className="font-body-md text-body-md text-on-surface">{holistic.precedentInsight}</Text>
+                    <Text className="font-helper-text text-helper-text text-on-surface-variant">
+                      Retrieved from synthetic demo records — illustrative precedent, not clinical evidence.
+                    </Text>
+                  </View>
+                ) : null}
+
+                <View className="flex-row items-center gap-2 pt-1">
+                  <Text className="font-label-caps text-label-caps text-on-surface-variant">
+                    AI CONFIDENCE: {holistic.confidenceInAssessment.toUpperCase()}
+                  </Text>
+                </View>
+                <Text className="font-helper-text text-helper-text text-on-surface-variant">
+                  {holistic.confidenceRationale} · Advisory only — the routing above comes from the rule engine and is unchanged.
+                </Text>
+              </>
+            ) : (
+              <Text className="font-body-md text-body-md text-on-surface-variant">Reviewing the full picture…</Text>
             )}
           </View>
         )}
