@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { TopAppBar } from "../components/TopAppBar";
 import { symptomOptions } from "../lib/pathways";
 import { extractFromNarrative, isAiConfigured, aiModelLabel, type AiExtraction } from "../lib/ai";
 import { VoiceCapture } from "../components/VoiceCapture";
+import { generateRiskScreening, type RiskScreening } from "../lib/aiClinical";
 import type { DraftEncounter, Encounter, Patient, Vitals } from "../lib/types";
 
 export type WizardData = Partial<Encounter> & {
@@ -255,6 +256,9 @@ export function OnboardingWizard({
   );
   const [aiBusy, setAiBusy] = useState(false);
   const [aiResult, setAiResult] = useState<AiExtraction | null>(null);
+  const [riskScreen, setRiskScreen] = useState<RiskScreening | null>(null);
+  const [riskBusy, setRiskBusy] = useState(false);
+  const [riskFor, setRiskFor] = useState<string>("");
   const draftId = initialDraft?.id;
 
   function update(patch: Partial<WizardData>) {
@@ -355,6 +359,29 @@ export function OnboardingWizard({
   }
 
   const relevantRiskGroups = (data.symptoms ?? []).filter((s) => riskQuestionSets[s]);
+
+  // Dynamic risk screening. Regenerates whenever the presentation changes, so
+  // going back to edit symptoms doesn't leave stale questions on screen.
+  const riskSignature = JSON.stringify([data.symptoms, data.primaryConcern, data.freeText, data.age, data.sex]);
+  useEffect(() => {
+    if (step !== 6 || !isAiConfigured()) return;
+    if (riskFor === riskSignature) return;
+    let cancelled = false;
+    setRiskBusy(true);
+    generateRiskScreening({ ...data, age: data.age, sex: data.sex })
+      .then((r) => {
+        if (cancelled) return;
+        setRiskScreen(r);
+        setRiskFor(riskSignature);
+      })
+      .finally(() => {
+        if (!cancelled) setRiskBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, riskSignature]);
 
   return (
     <View className="flex-1 bg-background">
@@ -715,38 +742,87 @@ export function OnboardingWizard({
             <View className="gap-section-gap">
               <Text className="font-headline-lg text-headline-lg text-on-surface">Risk screening</Text>
               <Text className="font-body-md text-body-md text-on-surface-variant">
-                Questions adapt to the symptoms selected in step 4.
+                Questions are generated for this specific presentation, not a fixed checklist.
               </Text>
-              {relevantRiskGroups.length === 0 && (
+              {riskBusy && !riskScreen && (
                 <SectionCard>
-                  <Text className="font-body-md text-body-md text-on-surface-variant">
-                    No symptom-specific questions apply. Continue to medical history.
-                  </Text>
+                  <View className="flex-row items-center gap-2">
+                    <ActivityIndicator size="small" color="#3525cd" />
+                    <Text className="font-body-md text-body-md text-on-surface-variant">
+                      Generating questions for this presentation…
+                    </Text>
+                  </View>
                 </SectionCard>
               )}
-              {relevantRiskGroups.map((group) => (
-                <SectionCard key={group}>
-                  <Text className="font-headline-md text-headline-md text-on-surface">{group}</Text>
-                  {riskQuestionSets[group].map((q) => {
-                    const answers = data.riskAnswers ?? {};
-                    return (
-                      <View key={q.key} className="gap-1.5">
-                        <Text className="font-body-md text-body-md text-on-surface">{q.question}</Text>
-                        <View className="flex-row flex-wrap gap-x-2">
-                          {["Yes", "No", "Unknown"].map((opt) => (
-                            <Chip
-                              key={opt}
-                              selected={answers[q.key] === opt}
-                              label={opt}
-                              onPress={() => update({ riskAnswers: { ...answers, [q.key]: opt } })}
-                            />
-                          ))}
+
+              {riskScreen && riskScreen.questions.length > 0 ? (
+                <>
+                  {riskScreen.rationale ? (
+                    <Text className="font-helper-text text-helper-text text-on-surface-variant -mt-1">
+                      {riskScreen.rationale}
+                    </Text>
+                  ) : null}
+                  <SectionCard>
+                    {riskScreen.questions.map((q) => {
+                      const answers = data.riskAnswers ?? {};
+                      return (
+                        <View key={q.key} className="gap-1.5">
+                          <View className="flex-row items-start gap-2">
+                            {q.critical && <MaterialIcons name="priority-high" size={16} color="#ba1a1a" />}
+                            <Text className="flex-1 font-body-md text-body-md text-on-surface">{q.question}</Text>
+                          </View>
+                          <Text className="font-helper-text text-helper-text text-on-surface-variant">{q.probes}</Text>
+                          <View className="flex-row flex-wrap gap-x-2">
+                            {["Yes", "No", "Unsure"].map((opt) => (
+                              <Chip
+                                key={opt}
+                                selected={answers[q.key] === opt}
+                                label={opt}
+                                onPress={() => update({ riskAnswers: { ...answers, [q.key]: opt } })}
+                              />
+                            ))}
+                          </View>
                         </View>
-                      </View>
-                    );
-                  })}
-                </SectionCard>
-              ))}
+                      );
+                    })}
+                  </SectionCard>
+                </>
+              ) : !riskBusy ? (
+                <>
+                  {/* Offline fallback: fixed per-symptom sets, used when the AI is
+                      unreachable or no key is configured. */}
+                  {relevantRiskGroups.length === 0 && (
+                    <SectionCard>
+                      <Text className="font-body-md text-body-md text-on-surface-variant">
+                        No symptom-specific questions apply. Continue to medical history.
+                      </Text>
+                    </SectionCard>
+                  )}
+                  {relevantRiskGroups.map((group) => (
+                    <SectionCard key={group}>
+                      <Text className="font-headline-md text-headline-md text-on-surface">{group}</Text>
+                      {riskQuestionSets[group].map((q) => {
+                        const answers = data.riskAnswers ?? {};
+                        return (
+                          <View key={q.key} className="gap-1.5">
+                            <Text className="font-body-md text-body-md text-on-surface">{q.question}</Text>
+                            <View className="flex-row flex-wrap gap-x-2">
+                              {["Yes", "No", "Unknown"].map((opt) => (
+                                <Chip
+                                  key={opt}
+                                  selected={answers[q.key] === opt}
+                                  label={opt}
+                                  onPress={() => update({ riskAnswers: { ...answers, [q.key]: opt } })}
+                                />
+                              ))}
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </SectionCard>
+                  ))}
+                </>
+              ) : null}
             </View>
           )}
 

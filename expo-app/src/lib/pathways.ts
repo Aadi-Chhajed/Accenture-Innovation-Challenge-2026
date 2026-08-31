@@ -12,19 +12,6 @@ export const pathways = [
   "Fast Track / Minor Care",
 ];
 
-export const symptomOptions = [
-  "Chest discomfort",
-  "Breathing difficulty",
-  "Fever / infection symptoms",
-  "Injury / trauma",
-  "Bleeding",
-  "Abdominal pain",
-  "Weakness / fainting",
-  "Confusion / altered behavior",
-  "Stroke-like symptoms",
-  "Pregnancy-related concern",
-  "Burn",
-  "Allergic reaction",
-  "Mental health concern",
-  "Pediatric fever/crying/lethargy",
-];
+// Single source of truth is SYMPTOM_TAXONOMY in prompts.ts, so the chips the
+// nurse sees and the vocabulary the model is given can never drift apart.
+export { SYMPTOM_TAXONOMY as symptomOptions } from "./prompts";

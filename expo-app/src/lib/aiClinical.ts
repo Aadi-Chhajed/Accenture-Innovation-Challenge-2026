@@ -1,5 +1,6 @@
 import { callModel, isAiConfigured, aiProvider } from "./ai";
 import type { Encounter, Patient, Recommendation, Vitals } from "./types";
+import { priorRecordPrompt, nextQuestionsPrompt, vitalsPlanPrompt, holisticPrompt, reassessmentPrompt, riskScreeningPrompt } from "./prompts";
 
 // ---------------------------------------------------------------------------
 // Clinical AI capabilities layered on top of the provider transport in ai.ts.
@@ -88,14 +89,7 @@ export async function analyzePriorRecord(
   if (!isAiConfigured()) return null;
   if (patient.previousRecord !== "Available" || !patient.previousSummary) return null;
 
-  const system = [
-    "You compare a patient's PRIOR medical record against their CURRENT emergency presentation.",
-    "You are decision support for a triage nurse. You do not diagnose and you do not assign urgency.",
-    "Focus only on what changed and what prior history raises risk for the current complaint.",
-    "If the patient appears to be returning for the same or a related problem, say so explicitly — an unplanned",
-    "re-presentation is itself a risk signal that something was missed or is not resolving.",
-    "Be concise. Summary under 50 words. Never speculate beyond what the records state.",
-  ].join(" ");
+  const system = priorRecordPrompt();
 
   const tool = {
     name: "record_prior_analysis",
@@ -158,18 +152,7 @@ export async function generateNextQuestions(
 ): Promise<NextQuestions | null> {
   if (!isAiConfigured()) return null;
 
-  const system = [
-    "You decide the NEXT questions a triage nurse should ask, based on what has been captured so far.",
-    "You are a data-gathering step in a ROUTING tool. You do not diagnose and you do not assign urgency.",
-    "Ask only what would change the ROUTING decision. Never ask something already answered.",
-    "Prioritise ruling OUT time-critical conditions: cardiac, stroke, aortic, pulmonary embolism, sepsis,",
-    "spinal cord compression, ectopic pregnancy. Absence of a classic symptom does NOT rule these out in",
-    "older adults, women, or diabetics — probe for atypical presentations (isolated breathlessness,",
-    "epigastric pain, nausea, fatigue, new confusion) rather than assuming a benign cause.",
-    "Ask at most 3 questions at a time. Keep each under 15 words, plain language a patient understands.",
-    "Offer short multiple-choice options where a choice is clearer than free text.",
-    "Set readyToRoute true only when enough is known to route safely.",
-  ].join(" ");
+  const system = nextQuestionsPrompt();
 
   const tool = {
     name: "record_next_questions",
@@ -244,14 +227,7 @@ const ALL_VITALS = [
 export async function planVitals(partial: Partial<Encounter> & { age?: number }): Promise<VitalsPlan | null> {
   if (!isAiConfigured()) return null;
 
-  const system = [
-    "You decide which vital signs and physical observations matter MOST for a specific emergency presentation.",
-    "You are prioritising data capture for a routing tool. You do not diagnose.",
-    "Return the highest-value vitals first, with a short reason a nurse would accept.",
-    "Never omit a vital that could reveal a time-critical condition for this presentation.",
-    "Valid vital keys are exactly: " + ALL_VITALS.join(", ") + ".",
-    "Also suggest physical observations worth recording for this specific case.",
-  ].join(" ");
+  const system = vitalsPlanPrompt(ALL_VITALS);
 
   const tool = {
     name: "record_vitals_plan",
@@ -397,18 +373,7 @@ export async function analyzeHolistic(args: {
   if (!isAiConfigured()) return null;
   const { encounter, patient, recommendation, priorAnalysis, similarCases, hospitalContext } = args;
 
-  const system = [
-    "You are the final review step for an emergency-department ROUTING recommendation.",
-    "A deterministic rule engine has already decided the urgency level and pathway. You CANNOT change them.",
-    "Your job is to think about the whole situation and tell the triage nurse what the rules may have missed.",
-    "Weigh especially: time-critical conditions that hide (acute coronary syndrome, stroke, aortic dissection,",
-    "pulmonary embolism, sepsis, spinal cord compression, ectopic pregnancy).",
-    "ATYPICAL PRESENTATION IS THE KEY RISK: in older adults, women, and diabetics, a serious cardiac event may",
-    "present with no chest pain at all — only breathlessness, epigastric pain, nausea, fatigue, or new confusion.",
-    "If this patient is in such a group, say so explicitly, even if the classic symptom is absent.",
-    "Similar past cases are SYNTHETIC illustrative precedent, not clinical evidence — never cite them as proof.",
-    "Be direct and brief. Overall assessment under 70 words. State your confidence and why.",
-  ].join(" ");
+  const system = holisticPrompt();
 
   const tool = {
     name: "record_holistic",
@@ -499,14 +464,7 @@ export async function analyzeReassessment(
 ): Promise<ReassessmentAnalysis | null> {
   if (!isAiConfigured()) return null;
 
-  const system = [
-    "You assess whether a waiting emergency patient has MEANINGFULLY changed since they were triaged.",
-    "You do not diagnose and you cannot change their routing. You advise the nurse.",
-    "Distinguish real deterioration from noise — not every new observation is significant.",
-    "Weight trends over single values. A modest change in a frail or elderly patient can matter more than a",
-    "large change in a well one. Prefer flagging genuine deterioration over reassurance.",
-    "Change summary under 40 words.",
-  ].join(" ");
+  const system = reassessmentPrompt();
 
   const tool = {
     name: "record_reassessment",
@@ -553,4 +511,73 @@ export async function analyzeReassessment(
 /** Which provider/model is doing the clinical reasoning, for UI display. */
 export function clinicalAiStatus(): { provider: string; stt: boolean } {
   return { provider: aiProvider(), stt: isSttConfigured() };
+}
+
+// =========================================================================
+// 8. DYNAMIC RISK SCREENING (replaces the hardcoded per-symptom checklist)
+// =========================================================================
+
+export type RiskScreening = {
+  questions: { key: string; question: string; probes: string; critical: boolean }[];
+  rationale: string;
+};
+
+/**
+ * Generate risk-screening questions specific to what THIS patient described.
+ *
+ * Replaces a static map of symptom -> fixed question list, which could only
+ * respond to the ~10 symptoms it had entries for and asked identical questions
+ * regardless of age, sex, history, or how the complaint was actually described.
+ * A 70-year-old diabetic with chest pain and a 25-year-old with the same chip
+ * selected received exactly the same four questions.
+ */
+export async function generateRiskScreening(
+  partial: Partial<Encounter> & { age?: number; sex?: string }
+): Promise<RiskScreening | null> {
+  if (!isAiConfigured()) return null;
+
+  const system = riskScreeningPrompt();
+
+  const tool = {
+    name: "record_risk_screening",
+    description: "Record risk-screening questions tailored to this presentation.",
+    input_schema: {
+      type: "object",
+      properties: {
+        questions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              key: { type: "string", description: "Short snake_case identifier, unique within this set." },
+              question: { type: "string", description: "Plain language, answerable Yes/No/Unsure." },
+              probes: { type: "string", description: "The condition this helps rule in or out, as readable prose for a nurse — for example 'Acute coronary syndrome' or 'Pulmonary embolism'. Never snake_case or an identifier." },
+              critical: { type: "boolean", description: "True if a Yes would materially change routing." },
+            },
+            required: ["key", "question", "probes", "critical"],
+          },
+        },
+        rationale: { type: "string", description: "Under 30 words on why this question set for this patient." },
+      },
+      required: ["questions", "rationale"],
+    },
+  };
+
+  const userText = [
+    "PATIENT",
+    "Age: " + (partial.age ?? "unknown") + " | Sex: " + (partial.sex ?? "unknown"),
+    "Categories: " + (partial.patientCategories?.join(", ") || "none recorded"),
+    "Primary concern: " + (partial.primaryConcern || "-"),
+    "Symptoms: " + (partial.symptoms?.join(", ") || "-"),
+    "Narrative: " + (partial.freeText || "-"),
+    "Onset: " + (partial.onset || "unknown") + " | Duration: " + (partial.duration || "unknown"),
+    "Known history: " + (partial.history?.conditions ?? "unknown"),
+  ].join("\n");
+
+  const out = await callModel(system, userText, tool);
+  if (!out) return null;
+  return {
+    questions: Array.isArray(out.questions) ? (out.questions as RiskScreening["questions"]) : [],
+    rationale: typeof out.rationale === "string" ? out.rationale : "",
+  };
 }

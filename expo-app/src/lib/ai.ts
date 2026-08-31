@@ -1,5 +1,5 @@
 import type { Encounter, Recommendation } from "./types";
-import { symptomOptions } from "./pathways";
+import { extractionPrompt, reviewPrompt, SYMPTOM_TAXONOMY } from "./prompts";
 
 // ---------------------------------------------------------------------------
 // Real LLM layer. Supports Groq (OpenAI-compatible), Google Gemini
@@ -248,15 +248,7 @@ export async function extractFromNarrative(
 ): Promise<AiExtraction | null> {
   if (!narrative.trim()) return null;
 
-  const system = [
-    "You extract structured triage-intake fields from what a patient, family member, or nurse said in an emergency department.",
-    "You are a data-extraction step in a ROUTING support tool. You do NOT diagnose and you do NOT assign urgency.",
-    "Extract only what is actually stated or clearly implied. Never invent vitals, history, or timings.",
-    "If something important for routing was not said, list it in missingCriticalInfo and propose a short targeted question in followUpQuestions.",
-    "If the narrative contradicts itself, record it in contradictions rather than silently picking one side.",
-    "The narrative may be in " + language + ", including Hinglish or mixed script. Return field VALUES in English.",
-    "When mapping symptoms, prefer these exact labels where they fit: " + symptomOptions.join("; ") + ".",
-  ].join(" ");
+  const system = extractionPrompt(language);
 
   const tool = {
     name: "record_intake",
@@ -339,13 +331,7 @@ export async function reviewRecommendation(
   rec: Recommendation,
   hospitalContext: string
 ): Promise<AiReview | null> {
-  const system = [
-    "You review an emergency-department ROUTING recommendation produced by a deterministic rule engine.",
-    "You are decision support for a triage nurse. You do not diagnose and you cannot change the routing.",
-    "Judge only whether the routing and urgency look reasonable given the recorded information and the hospital's current state.",
-    "Be explicit about what is missing or uncertain. Prefer flagging under-triage risk over false reassurance.",
-    "Keep the narrative under 60 words, plain and clinical, no hedging filler.",
-  ].join(" ");
+  const system = reviewPrompt();
 
   const tool = {
     name: "record_review",
