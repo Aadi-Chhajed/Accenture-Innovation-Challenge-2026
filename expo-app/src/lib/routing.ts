@@ -1,16 +1,23 @@
 import type { Encounter, Recommendation, Resource, RoutingPolicy, UrgencyLevel } from "./types";
 
-// Maximum minutes a patient at each urgency level should sit in the waiting
-// queue before the system must proactively flag it, independent of anything
-// a nurse chooses to do. This is what the queue monitor in store.tsx checks
-// against on every tick — kept here, next to the level definitions, as the
-// single place that defines what "safe" means per level.
+// Maximum minutes from triage to initial physician assessment, per acuity
+// level. These are the published CTAS (Canadian Triage and Acuity Scale)
+// national targets — NOT values we invented:
+//   L1 immediate (98% compliance) | L2 15m (95%) | L3 30m (90%)
+//   L4 60m (85%)                  | L5 120m (80%)
+// Previously L3/L4/L5 were set to 45/90/180 — roughly 50% more lenient than
+// the standard, meaning the monitor stayed silent well past the point a real
+// ED would consider the wait unsafe. Corrected to the published targets.
+//
+// HOSPITAL-CONFIGURABLE: the spec requires thresholds to live in config rather
+// than source. This is the single definition point; a per-hospital override
+// belongs here when hospital onboarding is built.
 export const SAFE_WAIT_THRESHOLD_MINUTES: Record<UrgencyLevel, number> = {
   1: 0,
   2: 15,
-  3: 45,
-  4: 90,
-  5: 180,
+  3: 30,
+  4: 60,
+  5: 120,
 };
 
 const levelLabels: Record<UrgencyLevel, string> = {
@@ -52,9 +59,19 @@ function clampLevel(level: number): UrgencyLevel {
   return Math.min(5, Math.max(1, level)) as UrgencyLevel;
 }
 
+// Expected (not maximum) minutes until assessment. Deliberately sits BELOW the
+// CTAS target for the level — the target is when we alarm, this is what we
+// expect — then degrades as resources become constrained.
+//
+// KNOWN LIMITATION: this is level-based only. It does not account for the
+// patient's actual position in the queue, so a Level 3 who is next in line and
+// a Level 3 with ten people ahead of them currently show the same estimate.
+// Making this queue-aware requires passing the encounter list in and modelling
+// parallel clinician capacity.
 function waitForLevel(level: UrgencyLevel, pathway: string, resources: Resource[]) {
   const constrained = resources.filter((resource) => resource.status !== "Available").length;
-  const base = { 1: 0, 2: 8, 3: 24, 4: 55, 5: 95 }[level];
+  // ~50-80% of the CTAS target for the level, leaving headroom before breach.
+  const base = { 1: 0, 2: 8, 3: 20, 4: 45, 5: 90 }[level];
   const pathwayPressure = pathway.includes("Cardiac") || pathway.includes("Trauma") ? 4 : 0;
   return base + constrained * 3 + pathwayPressure;
 }
