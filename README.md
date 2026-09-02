@@ -39,6 +39,9 @@ This repo holds two parallel implementations built from the same design spec (se
 
 The mobile app in `expo-app/` is the fully-featured, actively maintained build — start there.
 
+> **Full inventory:** [FEATURES.md](FEATURES.md) lists exactly what is in the app,
+> including known limitations, and carries the commands to re-verify itself.
+
 ### Core features (verified working, not aspirational)
 
 - **8-step nurse onboarding wizard** — arrival mode, patient basics with photo capture, information source/language, chief concern with AI-assisted extraction, onset/trend, symptom-adaptive risk screening, medical history, vitals (every field can be marked "not available" instead of guessed).
