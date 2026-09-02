@@ -1,6 +1,8 @@
 export type UrgencyLevel = 1 | 2 | 3 | 4 | 5;
 
-export type ArrivalMode = "Pre-arrival call" | "Walk-in" | "Ambulance" | "Referral";
+export type Sex = "Female" | "Male" | "Intersex" | "Other" | "Unknown" | "Prefer not to say";
+
+export type ArrivalMode = "Pre-arrival call" | "Walk-in" | "Ambulance" | "Referral" | "Other";
 
 export type EncounterStatus =
   | "Expected"
@@ -46,7 +48,10 @@ export type Patient = {
   name: string;
   age: number;
   ageGroup: "Infant" | "Child" | "Adult" | "Geriatric";
-  sex: "Female" | "Male" | "Other";
+  // Recorded sex, not gender identity: the routing engine uses it only where
+  // physiology differs (atypical ACS risk, pregnancy pathways). "Unknown" is a
+  // real answer for an unconscious patient and must not be forced to a guess.
+  sex: Sex;
   phone?: string;
   previousRecord: "Available" | "Not found" | "Unknown";
   previousSummary?: string;
@@ -85,6 +90,14 @@ export type Recommendation = {
   reasons: string[];
   missingInfo: string[];
   uncertainty: string[];
+  /** Every term that produced `confidence`, so the number can be audited
+   *  instead of taken on faith. Renders under the confidence bar. */
+  confidenceBasis: { factor: string; effect: string }[];
+  /** 1 = next to be seen at this acuity. Drives estimatedWait. */
+  queuePosition?: number;
+  /** Set when several patients from one locality present with a similar
+   *  infectious picture in the same shift. */
+  outbreakSignal?: string;
   humanReviewRequired: boolean;
   undertriageSafeguard: boolean;
   overtriageRiskScore: number;
@@ -132,6 +145,13 @@ export type Encounter = {
   };
   observations: string[];
   medicoLegal: boolean;
+  /** Area / neighbourhood the patient travelled from. Free text, because a
+   *  fixed dropdown cannot cover every village a district hospital serves. */
+  locality?: string;
+  /** Gate 0: nurse judged this visibly life-threatening on sight and bypassed
+   *  the questionnaire. Short-circuits the rule engine to Level 1. */
+  nurseCriticalOverride?: { reason: string; nurseId: string; at: string };
+  arrivalModeOther?: string;
   transcript?: string;
   photoAttached?: boolean;
   status: EncounterStatus;

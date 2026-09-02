@@ -1,7 +1,7 @@
 import { View, Text, Pressable } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import type { Encounter, Patient } from "../lib/types";
-import { urgencyStyles, initials } from "../lib/urgency";
+import { urgencyStyles, initials, ageLabel } from "../lib/urgency";
 import { TriageChip } from "./TriageChip";
 
 // Ported from the "High Priority Card" pattern in nurse_dashboard/code.html
@@ -22,7 +22,7 @@ export function PatientCard({ encounter, patient, onPress }: { encounter: Encoun
             <View className="flex-row items-center gap-x-2 flex-wrap">
               <Text className="font-headline-md text-headline-md text-on-surface">{patient.name}</Text>
               <Text className="font-body-md text-body-md text-on-surface-variant">
-                {patient.age}, {patient.sex}
+                {ageLabel(patient.age)}, {patient.sex}
               </Text>
               {encounter.token ? (
                 <View className="px-2 py-0.5 bg-surface-container rounded border border-outline-variant/30">

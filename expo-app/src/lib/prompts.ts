@@ -91,6 +91,20 @@ export const GLOBAL_RULES = [
 // ---------------------------------------------------------------------------
 // SAFETY RULES — for anything that reasons about risk
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// GATE 0 — what the model must do when the nurse has already bypassed triage
+// ---------------------------------------------------------------------------
+// Without this, the reviewer confidently argued AGAINST a nurse who had just
+// looked at an unresponsive patient: "routing to immediate resuscitation is not
+// supported; no evidence patient is unresponsive". It was reasoning from the
+// empty form rather than recognising that the form is empty BY DESIGN. The
+// model cannot see the patient; the nurse can.
+export const GATE0_RULES = [
+  "If this record carries a nurse critical bypass (Gate 0), a triage nurse has looked at the patient and judged them to be in immediate danger of dying. The intake fields are empty BY DESIGN — resuscitation comes first and documentation follows.",
+  "NEVER argue against the bypass, and NEVER cite the missing fields as evidence that it was unwarranted. Their absence is the expected consequence of the decision, not a reason to doubt it. The nurse can see the patient; you cannot.",
+  "Your only useful contribution here is forward-looking: what the receiving team should check first, and which time-critical causes fit the stated observation.",
+].join(" ");
+
 export const SAFETY_RULES = [
   "Under-triage is far more costly than over-triage: missing a critical case is categorically worse than over-prioritising a minor one. When uncertain, flag rather than reassure.",
   "Actively consider time-critical conditions that hide: acute coronary syndrome, stroke, aortic dissection, pulmonary embolism, sepsis, spinal cord compression, ectopic pregnancy, meningitis.",
@@ -127,6 +141,7 @@ export function reviewPrompt(): string {
   return [
     GLOBAL_RULES,
     SAFETY_RULES,
+    GATE0_RULES,
     "",
     "TASK: review a routing recommendation the rule engine has already made. You cannot change it — you advise the nurse.",
     "Judge whether the routing and urgency look reasonable given the recorded information and the hospital's current state.",
@@ -207,6 +222,7 @@ export function holisticPrompt(): string {
   return [
     GLOBAL_RULES,
     SAFETY_RULES,
+    GATE0_RULES,
     "",
     "TASK: final review of the whole situation, after the rule engine has decided. You CANNOT change its level or pathway.",
     "Tell the nurse what the keyword-based rules may have missed, especially conditions the rules cannot see because the patient did not use the expected words.",

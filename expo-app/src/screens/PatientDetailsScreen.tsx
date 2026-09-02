@@ -6,7 +6,7 @@ import { VitalCard } from "../components/VitalCard";
 import { OverrideModal } from "../components/OverrideModal";
 import { ReassessModal } from "../components/ReassessModal";
 import { useAppDispatch, useAppState } from "../lib/store";
-import { urgencyStyles } from "../lib/urgency";
+import { urgencyStyles, ageLabel } from "../lib/urgency";
 
 type Tab = "OVERVIEW" | "TIMELINE" | "OBSERVATIONS";
 
@@ -44,7 +44,7 @@ export function PatientDetailsScreen({ encounterId, onBack }: { encounterId: str
             <View>
               <Text className="font-headline-lg text-headline-lg text-on-surface">{patient.name}</Text>
               <Text className="font-body-md text-body-md text-on-surface-variant mt-1">
-                {patient.age} yrs • {patient.sex} • Token {encounter.token}
+                {patient.age >= 0 ? `${patient.age} yrs` : ageLabel(patient.age)} • {patient.sex} • Token {encounter.token}
               </Text>
             </View>
           </View>

@@ -14,11 +14,12 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { TopAppBar } from "../components/TopAppBar";
+import { useAppState } from "../lib/store";
 import { symptomOptions } from "../lib/pathways";
 import { extractFromNarrative, isAiConfigured, aiModelLabel, type AiExtraction } from "../lib/ai";
 import { VoiceCapture } from "../components/VoiceCapture";
 import { generateRiskScreening, generateNextQuestions, planVitals, type RiskScreening, type NextQuestions, type VitalsPlan } from "../lib/aiClinical";
-import type { DraftEncounter, Encounter, Patient, Vitals } from "../lib/types";
+import type { DraftEncounter, Encounter, Patient, Sex, Vitals } from "../lib/types";
 
 export type WizardData = Partial<Encounter> & {
   patientName?: string;
@@ -32,7 +33,17 @@ export type WizardData = Partial<Encounter> & {
   conversation?: { q: string; a: string; why?: string }[];
 };
 
-const TOTAL_STEPS = 8;
+// Six steps, not eight. Published ED triage research puts the median nurse
+// triage encounter at ~2.6 minutes with 98% completed inside 5; an eight-screen
+// questionnaire cannot fit that budget, and a form nurses skip protects nobody.
+// Arrival and information-source merged (both are context, one tap each), and
+// onset/trend merged into the chief-concern step where the answers are already
+// being discussed. Nothing captured was dropped — only the screen count.
+const TOTAL_STEPS = 6;
+
+// Evidence-based target for the whole intake. Shown live so the constraint is
+// visible rather than aspirational.
+const INTAKE_BUDGET_SECONDS = 300;
 
 // Maps the vital keys the model returns onto the labels shown on screen.
 const VITAL_LABELS: Record<string, string> = {
@@ -47,11 +58,9 @@ const VITAL_LABELS: Record<string, string> = {
   consciousness: "Consciousness",
 };
 const stepTitles = [
-  "Arrival",
+  "Arrival & source",
   "Patient basics",
-  "Information source",
   "Chief concern",
-  "Onset & trend",
   "Risk screening",
   "Medical history",
   "Vitals & observations",
@@ -62,17 +71,77 @@ const arrivalOptions: { value: Encounter["arrivalMode"]; label: string; desc: st
   { value: "Ambulance", label: "Ambulance", desc: "EMS transport, requires handover.", icon: "local-shipping" },
   { value: "Referral", label: "Referral", desc: "Transferred from another facility.", icon: "assignment-ind" },
   { value: "Pre-arrival call", label: "Pre-arrival call", desc: "Expected arrival logged by phone.", icon: "call" },
+  // Real arrivals do not fit four boxes — police, inter-department transfer,
+  // found collapsed on the premises. Forcing one of the four would record a
+  // fact that is simply false.
+  { value: "Other", label: "Other", desc: "Police, inter-department transfer, or anything else.", icon: "more-horiz" },
 ];
 
+// ---------------------------------------------------------------------------
+// GATE 0 — direct-to-resuscitation bypass
+// ---------------------------------------------------------------------------
+// Some patients are visibly dying on arrival. Making the nurse complete a
+// questionnaire first is the one design failure a triage tool cannot recover
+// from, so this exits the wizard immediately at Level 1 and documents itself
+// afterwards. Reasons are the recognised immediate-threat categories.
+const GATE0_REASONS = [
+  "Unresponsive / cannot be woken",
+  "Not breathing, gasping, or choking",
+  "Severe uncontrolled bleeding",
+  "Active seizure",
+  "Obvious major trauma",
+  "Visibly critical — other",
+];
+
+// Sex is recorded because physiology differs where the rules read it — women
+// over 45 sit in the atypical-ACS risk group, pregnancy has its own pathway.
+// "Unknown" is a legitimate answer for an unconscious patient and must never be
+// forced to a guess; "Prefer not to say" respects the patient without inventing
+// a value the engine would then act on.
+const sexOptions: Sex[] = ["Female", "Male", "Intersex", "Other", "Unknown", "Prefer not to say"];
+
+// Age groups (Infant / Child / Adult / Geriatric) are DERIVED from the age
+// field, not picked here — asking a nurse to re-state what they just typed
+// invited disagreement between the two, and the engine reads the category. What
+// is left are genuine clinical modifiers that age cannot imply.
 const categoryOptions = [
-  "Infant",
-  "Child",
-  "Adult",
   "Pregnant patient",
-  "Geriatric",
+  "Postpartum (<6 weeks)",
   "Unconscious/unresponsive",
   "Communication-impaired",
   "Medico-legal/accident case",
+  "Diabetic",
+  "Immunocompromised",
+  "Frail / bedbound",
+  "Recent surgery (<30 days)",
+  "Mental health crisis",
+  "Substance intoxication",
+];
+
+// Derived, shown read-only next to the manual modifiers so the nurse can see
+// what the engine will apply.
+function derivedCategory(age?: number): string | null {
+  if (age == null || age < 0) return null;
+  if (age < 2) return "Infant";
+  if (age < 13) return "Child";
+  if (age >= 65) return "Geriatric";
+  return "Adult";
+}
+
+// ---------------------------------------------------------------------------
+// MEDICAL HISTORY — categories to subcategories
+// ---------------------------------------------------------------------------
+// This was five free-text boxes and nobody filled them, which mattered because
+// "Diabetes" here is what arms the atypical-presentation rule in the routing
+// engine. Tapping is faster than typing under time pressure, and the free-text
+// box stays for anything the list does not cover.
+const HISTORY_GROUPS: { label: string; icon: keyof typeof MaterialIcons.glyphMap; items: string[] }[] = [
+  { label: "Heart & circulation", icon: "favorite", items: ["Hypertension", "Heart disease / past MI", "Arrhythmia", "Heart failure", "Blood thinners"] },
+  { label: "Diabetes & hormones", icon: "water-drop", items: ["Diabetes", "On insulin", "Thyroid disorder"] },
+  { label: "Lungs", icon: "air", items: ["Asthma", "COPD", "Past TB", "Home oxygen"] },
+  { label: "Brain & nerves", icon: "psychology", items: ["Past stroke / TIA", "Epilepsy", "Dementia"] },
+  { label: "Kidney & liver", icon: "healing", items: ["Kidney disease", "On dialysis", "Liver disease"] },
+  { label: "Other", icon: "more-horiz", items: ["Cancer", "Immunosuppressed", "Recent surgery", "Pregnancy"] },
 ];
 
 const speakerOptions: Encounter["speakerSource"][] = ["Patient", "Family", "Caregiver", "Ambulance staff", "Registration staff"];
@@ -264,7 +333,9 @@ export function OnboardingWizard({
   onComplete: (data: WizardData) => void;
   onSaveDraft: (draftId: string | undefined, step: number, data: WizardData) => void;
 }) {
-  const [step, setStep] = useState(initialDraft?.currentStage || 1);
+  // Clamped: drafts saved under the old 8-step numbering are still in
+  // AsyncStorage and would resume past the end of the wizard.
+  const [step, setStep] = useState(Math.min(TOTAL_STEPS, Math.max(1, initialDraft?.currentStage || 1)));
   const [data, setData] = useState<WizardData>(
     initialDraft
       ? { patientName: initialDraft.patientName, age: initialDraft.age, ...initialDraft.data }
@@ -279,7 +350,39 @@ export function OnboardingWizard({
   const [convoBusy, setConvoBusy] = useState(false);
   const [vitalsPlan, setVitalsPlan] = useState<VitalsPlan | null>(null);
   const [vitalsPlanFor, setVitalsPlanFor] = useState<string>("");
+  const [gate0Open, setGate0Open] = useState(false);
+  const [gate0Reason, setGate0Reason] = useState<string | null>(null);
+  const [elapsed, setElapsed] = useState(0);
   const draftId = initialDraft?.id;
+  const nurse = useAppState().nurseSession;
+
+  // Elapsed intake time against the 5-minute budget. Shown, not enforced — a
+  // timer that blocked the nurse would be worse than the problem it measures.
+  useEffect(() => {
+    const startedAt = Date.now();
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  /** Gate 0: leave immediately at Level 1 with whatever is already recorded.
+   *
+   *  Confirmation is a second tap inside the panel, NOT a system dialog.
+   *  `Alert.alert` with multiple buttons is a no-op on React Native Web, so the
+   *  most safety-critical control in the app did nothing at all there — and a
+   *  control whose behaviour depends on the platform is not one to trust in an
+   *  emergency. Two taps in-app is also faster than a modal. */
+  function confirmGate0() {
+    if (!gate0Reason) return;
+    onComplete({
+      ...data,
+      patientName: data.patientName || "UNIDENTIFIED PATIENT",
+      nurseCriticalOverride: {
+        reason: gate0Reason,
+        nurseId: nurse?.name || nurse?.rollNumber || "Triage Nurse",
+        at: new Date().toISOString(),
+      },
+    });
+  }
 
   function update(patch: Partial<WizardData>) {
     setData((prev) => ({ ...prev, ...patch }));
@@ -438,7 +541,7 @@ export function OnboardingWizard({
   // earlier steps and returning regenerates rather than showing a stale plan.
   const vitalsSignature = JSON.stringify([data.symptoms, data.primaryConcern, data.freeText, data.age, data.patientCategories]);
   useEffect(() => {
-    if (step !== 8 || !isAiConfigured()) return;
+    if (step !== 6 || !isAiConfigured()) return;
     if (vitalsPlanFor === vitalsSignature) return;
     let cancelled = false;
     planVitals({ ...data, age: data.age })
@@ -458,7 +561,7 @@ export function OnboardingWizard({
   // going back to edit symptoms doesn't leave stale questions on screen.
   const riskSignature = JSON.stringify([data.symptoms, data.primaryConcern, data.freeText, data.age, data.sex]);
   useEffect(() => {
-    if (step !== 6 || !isAiConfigured()) return;
+    if (step !== 4 || !isAiConfigured()) return;
     if (riskFor === riskSignature) return;
     let cancelled = false;
     setRiskBusy(true);
@@ -499,7 +602,14 @@ export function OnboardingWizard({
               <Text className="font-label-caps text-label-caps text-primary uppercase">
                 Step {step} of {TOTAL_STEPS}
               </Text>
-              <Text className="font-helper-text text-helper-text text-on-surface-variant">{stepTitles[step - 1]}</Text>
+              <View className="flex-row items-center gap-2">
+                <Text className="font-helper-text text-helper-text text-on-surface-variant">{stepTitles[step - 1]}</Text>
+                <Text
+                  className={`font-helper-text text-helper-text ${elapsed > INTAKE_BUDGET_SECONDS ? "text-error" : "text-on-surface-variant"}`}
+                >
+                  {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")} / 5:00
+                </Text>
+              </View>
             </View>
             <View className="w-full bg-surface-variant rounded-full h-2 overflow-hidden">
               <View className="bg-primary h-2 rounded-full" style={{ width: `${completionPct}%` }} />
@@ -508,6 +618,76 @@ export function OnboardingWizard({
 
           {step === 1 && (
             <View className="gap-stack-gap">
+              {/* GATE 0 — first thing on the first screen, deliberately. If a
+                  patient is dying in front of the nurse, the bypass has to be
+                  reachable before any question is asked. */}
+              <View className="border-2 border-error rounded-xl overflow-hidden">
+                <Pressable
+                  onPress={() => setGate0Open((v) => !v)}
+                  accessibilityRole="button"
+                  className="bg-error-container/60 px-4 py-3 flex-row items-center gap-3"
+                >
+                  <MaterialIcons name="emergency" size={22} color="#93000a" />
+                  <View className="flex-1">
+                    <Text className="font-headline-md text-headline-md text-on-surface">Patient is critical right now</Text>
+                    <Text className="font-helper-text text-helper-text text-on-surface-variant">
+                      Skip triage — send straight to resuscitation
+                    </Text>
+                  </View>
+                  <MaterialIcons name={gate0Open ? "expand-less" : "expand-more"} size={22} color="#93000a" />
+                </Pressable>
+                {gate0Open && (
+                  <View className="px-4 py-3 gap-2 bg-surface-container-lowest">
+                    <Text className="font-body-md text-body-md text-on-surface-variant">
+                      Tap what you can see. The patient is routed at Level 1 immediately and the record is completed once they are stable.
+                    </Text>
+                    {GATE0_REASONS.map((r) => (
+                      <Pressable
+                        key={r}
+                        onPress={() => setGate0Reason(r)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: gate0Reason === r }}
+                        className={`h-touch-target-min rounded-lg border px-3 flex-row items-center gap-2 ${
+                          gate0Reason === r ? "border-error bg-error-container" : "border-error/50 bg-error-container/30"
+                        }`}
+                      >
+                        <MaterialIcons
+                          name={gate0Reason === r ? "radio-button-checked" : "bolt"}
+                          size={18}
+                          color="#93000a"
+                        />
+                        <Text className="font-body-md text-body-md text-on-surface flex-1">{r}</Text>
+                      </Pressable>
+                    ))}
+
+                    {gate0Reason && (
+                      <View className="gap-2 pt-1">
+                        <Text className="font-body-md text-body-md text-on-surface">
+                          Send this patient straight to resuscitation for: {gate0Reason.toLowerCase()}?
+                        </Text>
+                        <View className="flex-row gap-2">
+                          <Pressable
+                            onPress={() => setGate0Reason(null)}
+                            accessibilityRole="button"
+                            className="flex-1 h-touch-target-min rounded-lg border border-outline-variant items-center justify-center"
+                          >
+                            <Text className="font-label-caps text-label-caps text-on-surface uppercase">Cancel</Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={confirmGate0}
+                            accessibilityRole="button"
+                            className="flex-[2] h-touch-target-min rounded-lg bg-error flex-row items-center justify-center gap-2"
+                          >
+                            <MaterialIcons name="emergency" size={18} color="#ffffff" />
+                            <Text className="font-label-caps text-label-caps text-on-error uppercase">Send to resuscitation now</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+
               <Text className="font-headline-lg text-headline-lg text-on-surface">How is the patient arriving?</Text>
               <Text className="font-body-md text-body-md text-on-surface-variant">
                 This selects the correct triage workflow.
@@ -523,6 +703,13 @@ export function OnboardingWizard({
                     onPress={() => update({ arrivalMode: opt.value })}
                   />
                 ))}
+                {data.arrivalMode === "Other" && (
+                  <TextField
+                    value={data.arrivalModeOther ?? ""}
+                    onChangeText={(v) => update({ arrivalModeOther: v })}
+                    placeholder="How did they arrive?"
+                  />
+                )}
               </View>
             </View>
           )}
@@ -579,10 +766,25 @@ export function OnboardingWizard({
               <View>
                 <FieldLabel>Sex</FieldLabel>
                 <View className="flex-row flex-wrap gap-x-2">
-                  {(["Female", "Male", "Other"] as const).map((s) => (
+                  {sexOptions.map((s) => (
                     <Chip key={s} selected={data.sex === s} label={s} onPress={() => update({ sex: s })} />
                   ))}
                 </View>
+                <Text className="font-helper-text text-helper-text text-on-surface-variant mt-1">
+                  Used only where physiology differs — cardiac risk grouping and obstetric pathways. "Unknown" is a valid answer.
+                </Text>
+              </View>
+
+              <View>
+                <FieldLabel>Area / locality travelled from</FieldLabel>
+                <TextField
+                  value={data.locality ?? ""}
+                  onChangeText={(v) => update({ locality: v })}
+                  placeholder="e.g. Kalyan East, Sector 7"
+                />
+                <Text className="font-helper-text text-helper-text text-on-surface-variant mt-1">
+                  Several patients from one area with the same infectious picture is a cluster no single-patient rule can see.
+                </Text>
               </View>
 
               <View>
@@ -595,7 +797,15 @@ export function OnboardingWizard({
               </View>
 
               <View>
-                <FieldLabel>Patient category</FieldLabel>
+                <FieldLabel>Clinical modifiers</FieldLabel>
+                {derivedCategory(data.age) && (
+                  <View className="flex-row items-center gap-2 mb-2">
+                    <MaterialIcons name="lock" size={14} color="#464555" />
+                    <Text className="font-helper-text text-helper-text text-on-surface-variant">
+                      Age group <Text className="text-primary">{derivedCategory(data.age)}</Text> applied automatically from the age above
+                    </Text>
+                  </View>
+                )}
                 <View className="flex-row flex-wrap gap-x-2">
                   {categoryOptions.map((c) => {
                     const list = data.patientCategories ?? [];
@@ -622,7 +832,7 @@ export function OnboardingWizard({
             </View>
           )}
 
-          {step === 3 && (
+          {step === 1 && (
             <View className="gap-section-gap">
               <Text className="font-headline-lg text-headline-lg text-on-surface">Who is giving the information?</Text>
               <View>
@@ -663,7 +873,7 @@ export function OnboardingWizard({
             </View>
           )}
 
-          {step === 4 && (
+          {step === 3 && (
             <View className="gap-section-gap">
               <Text className="font-headline-lg text-headline-lg text-on-surface">What brings the patient in?</Text>
 
@@ -871,7 +1081,7 @@ export function OnboardingWizard({
             </View>
           )}
 
-          {step === 5 && (
+          {step === 3 && (
             <View className="gap-section-gap">
               <Text className="font-headline-lg text-headline-lg text-on-surface">Onset & trend</Text>
               <View>
@@ -909,7 +1119,7 @@ export function OnboardingWizard({
             </View>
           )}
 
-          {step === 6 && (
+          {step === 4 && (
             <View className="gap-section-gap">
               <Text className="font-headline-lg text-headline-lg text-on-surface">Risk screening</Text>
               <Text className="font-body-md text-body-md text-on-surface-variant">
@@ -997,18 +1207,14 @@ export function OnboardingWizard({
             </View>
           )}
 
-          {step === 7 && (
+          {step === 5 && (
             <View className="gap-section-gap">
               <Text className="font-headline-lg text-headline-lg text-on-surface">Medical history</Text>
-              {(
-                [
-                  ["conditions", "Known conditions"],
-                  ["medications", "Medications"],
-                  ["allergies", "Allergies"],
-                  ["previousEpisode", "Previous similar episode"],
-                  ["recentVisit", "Recent hospital visit"],
-                ] as const
-              ).map(([field, label]) => {
+              <Text className="font-body-md text-body-md text-on-surface-variant">
+                Tap what applies. Diabetes and heart history change how the routing engine reads this patient, so these are worth the ten seconds.
+              </Text>
+
+              {(() => {
                 const history = data.history ?? {
                   conditions: "",
                   medications: "",
@@ -1016,36 +1222,146 @@ export function OnboardingWizard({
                   previousEpisode: "",
                   recentVisit: "",
                 };
+                // Selected conditions live in history.conditions as a comma list:
+                // the routing engine and every AI prompt already read that field,
+                // so the chips need no new plumbing to take effect.
+                const picked = (history.conditions || "")
+                  .split(",")
+                  .map((c) => c.trim())
+                  .filter(Boolean);
+                const setPicked = (next: string[]) =>
+                  update({ history: { ...history, conditions: next.join(", ") } });
+                const toggle = (item: string) =>
+                  setPicked(picked.includes(item) ? picked.filter((x) => x !== item) : [...picked, item]);
+
                 return (
-                  <View key={field}>
-                    <FieldLabel>{label}</FieldLabel>
-                    <View className="flex-row flex-wrap gap-x-2">
-                      {["None known", "Unknown", "Not asked yet"].map((quick) => (
-                        <Chip
-                          key={quick}
-                          selected={history[field] === quick}
-                          label={quick}
-                          onPress={() => update({ history: { ...history, [field]: quick } })}
-                        />
-                      ))}
+                  <>
+                    {HISTORY_GROUPS.map((group) => (
+                      <SectionCard key={group.label}>
+                        <View className="flex-row items-center gap-2 mb-1">
+                          <MaterialIcons name={group.icon} size={18} color="#3525cd" />
+                          <Text className="font-headline-md text-headline-md text-on-surface">{group.label}</Text>
+                        </View>
+                        <View className="flex-row flex-wrap gap-x-2">
+                          {group.items.map((item) => (
+                            <Chip key={item} selected={picked.includes(item)} label={item} onPress={() => toggle(item)} />
+                          ))}
+                        </View>
+                      </SectionCard>
+                    ))}
+
+                    <View>
+                      <FieldLabel>Anything else in their history</FieldLabel>
+                      <View className="flex-row flex-wrap gap-x-2">
+                        {["None known", "Unknown"].map((quick) => (
+                          <Chip key={quick} selected={picked.includes(quick)} label={quick} onPress={() => toggle(quick)} />
+                        ))}
+                      </View>
                     </View>
-                    <TextField
-                      value={history[field] ?? ""}
-                      onChangeText={(v) => update({ history: { ...history, [field]: v } })}
-                      placeholder="Add detail…"
-                    />
-                  </View>
+
+                    <View>
+                      <FieldLabel>Medications</FieldLabel>
+                      <View className="flex-row flex-wrap gap-x-2">
+                        {["None", "Unknown", "Regular medication"].map((quick) => (
+                          <Chip
+                            key={quick}
+                            selected={history.medications === quick}
+                            label={quick}
+                            onPress={() => update({ history: { ...history, medications: quick } })}
+                          />
+                        ))}
+                      </View>
+                      <TextField
+                        value={history.medications ?? ""}
+                        onChangeText={(v) => update({ history: { ...history, medications: v } })}
+                        placeholder="Name them if known…"
+                      />
+                    </View>
+
+                    <View>
+                      <FieldLabel>Allergies</FieldLabel>
+                      <View className="flex-row flex-wrap gap-x-2">
+                        {["None known", "Unknown", "Not asked yet"].map((quick) => (
+                          <Chip
+                            key={quick}
+                            selected={history.allergies === quick}
+                            label={quick}
+                            onPress={() => update({ history: { ...history, allergies: quick } })}
+                          />
+                        ))}
+                      </View>
+                      <TextField
+                        value={history.allergies ?? ""}
+                        onChangeText={(v) => update({ history: { ...history, allergies: v } })}
+                        placeholder="Drug or food allergy…"
+                      />
+                    </View>
+
+                    {/* These two were free text and were almost never filled.
+                        They are yes/no questions, so they are yes/no chips now. */}
+                    {(
+                      [
+                        ["previousEpisode", "Had this same problem before?"],
+                        ["recentVisit", "Hospital visit in the last 30 days?"],
+                      ] as const
+                    ).map(([field, label]) => (
+                      <View key={field}>
+                        <FieldLabel>{label}</FieldLabel>
+                        <View className="flex-row flex-wrap gap-x-2">
+                          {["Yes", "No", "Unknown"].map((opt) => (
+                            <Chip
+                              key={opt}
+                              selected={history[field] === opt}
+                              label={opt}
+                              onPress={() => update({ history: { ...history, [field]: opt } })}
+                            />
+                          ))}
+                        </View>
+                      </View>
+                    ))}
+                  </>
                 );
-              })}
+              })()}
             </View>
           )}
-
-          {step === 8 && (
+          {step === 6 && (
             <View className="gap-section-gap">
               <Text className="font-headline-lg text-headline-lg text-on-surface">Vitals & observations</Text>
               <Text className="font-body-md text-body-md text-on-surface-variant">
                 Mark anything unavailable rather than guessing — missing data is handled safely.
               </Text>
+
+              <SectionCard>
+                <FieldLabel>Injury / visible finding photo (take this first)</FieldLabel>
+                {data.injuryPhotoUri ? (
+                  <View className="gap-2">
+                    <Image source={{ uri: data.injuryPhotoUri }} className="w-full h-48 rounded-lg" resizeMode="cover" />
+                    <View className="flex-row gap-2">
+                      <Pressable onPress={() => pickPhoto("injury")} className="flex-1 h-touch-target-min rounded-lg border border-outline-variant items-center justify-center">
+                        <Text className="font-label-caps text-label-caps text-on-surface">Retake</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => update({ injuryPhotoUri: undefined, photoAttached: false })}
+                        className="flex-1 h-touch-target-min rounded-lg border border-outline-variant items-center justify-center"
+                      >
+                        <Text className="font-label-caps text-label-caps text-error">Remove</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => pickPhoto("injury")}
+                    accessibilityRole="button"
+                    className="h-touch-target-min rounded-lg border border-outline-variant flex-row items-center justify-center gap-2"
+                  >
+                    <MaterialIcons name="photo-camera" size={18} color="#3525cd" />
+                    <Text className="font-label-caps text-label-caps text-primary">Take photo</Text>
+                  </Pressable>
+                )}
+                <Text className="font-helper-text text-helper-text text-on-surface-variant">
+                  Assistive signal only — an image never determines routing on its own.
+                </Text>
+              </SectionCard>
 
               {/* AI-prioritised vitals for this specific presentation, so the
                   nurse sees the two or three that matter rather than eight
@@ -1173,37 +1489,6 @@ export function OnboardingWizard({
                 </View>
               </View>
 
-              <SectionCard>
-                <FieldLabel>Injury / visible finding photo</FieldLabel>
-                {data.injuryPhotoUri ? (
-                  <View className="gap-2">
-                    <Image source={{ uri: data.injuryPhotoUri }} className="w-full h-48 rounded-lg" resizeMode="cover" />
-                    <View className="flex-row gap-2">
-                      <Pressable onPress={() => pickPhoto("injury")} className="flex-1 h-touch-target-min rounded-lg border border-outline-variant items-center justify-center">
-                        <Text className="font-label-caps text-label-caps text-on-surface">Retake</Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => update({ injuryPhotoUri: undefined, photoAttached: false })}
-                        className="flex-1 h-touch-target-min rounded-lg border border-outline-variant items-center justify-center"
-                      >
-                        <Text className="font-label-caps text-label-caps text-error">Remove</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                ) : (
-                  <Pressable
-                    onPress={() => pickPhoto("injury")}
-                    accessibilityRole="button"
-                    className="h-touch-target-min rounded-lg border border-outline-variant flex-row items-center justify-center gap-2"
-                  >
-                    <MaterialIcons name="photo-camera" size={18} color="#3525cd" />
-                    <Text className="font-label-caps text-label-caps text-primary">Take photo</Text>
-                  </Pressable>
-                )}
-                <Text className="font-helper-text text-helper-text text-on-surface-variant">
-                  Assistive signal only — an image never determines routing on its own.
-                </Text>
-              </SectionCard>
             </View>
           )}
         </ScrollView>

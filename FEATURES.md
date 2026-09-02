@@ -2,7 +2,7 @@
 
 **What is actually in the app right now.** Not a roadmap, not a pitch.
 
-> **Last verified:** commit `d7ec851` · Expo SDK 54 · verified by running the checks in [§10](#10-how-to-re-verify-this-document), not from memory.
+> **Last verified:** Expo SDK 54 · verified by running the checks in [§10](#10-how-to-re-verify-this-document), not from memory.
 >
 > **Rule for maintaining this file:** every ✅ must be something observed working — in the running app, in a live API call, or in a passing check. Anything built but unproven is ⚠️. Anything absent is ❌. If you cannot verify it, it is not ✅.
 
@@ -15,11 +15,12 @@
 | Screens | 11 |
 | Shared components | 11 |
 | Store actions | 15 |
-| Routing rules | 15 |
+| Routing rules | 17 |
 | Care pathways | 10 |
-| AI capabilities | 8 (7 wired) |
-| Seeded patients | 20 profiles / 20 encounters / 2 drafts |
-| Intake wizard steps | 8 |
+| AI capabilities | 8 (all wired) |
+| Seeded patients | 21 profiles / 21 encounters / 2 drafts |
+| Intake wizard steps | 6 |
+| Routing regression assertions | 24 |
 
 **Architecture in one line:** a deterministic rule engine decides urgency and pathway; an LLM layer adds extraction, questioning and advisory review on top, and can never override the engine.
 
@@ -49,7 +50,7 @@ Navigation is a state machine in `App.tsx` — no router. Five bottom tabs: Dash
 
 The authority on urgency and pathway. Pure, deterministic, no network, works with AI fully offline.
 
-**15 ordered rules.** Pathway selection uses *most-urgent-proposal-wins*, not last-match-wins.
+**17 ordered rules**, preceded by a **Gate 0 short-circuit**. Pathway selection uses *most-urgent-proposal-wins*, not last-match-wins.
 
 **10 pathways:** Resuscitation / Critical Care Bay · Cardiac Review · Stroke / Neuro Review · Trauma · Pediatrics · Obstetrics · Isolation / Infection Concern · Emergency General · Observation · Fast Track / Minor Care
 
@@ -75,27 +76,43 @@ Verified: an identical 37.9 °C fever yields **L4 for an adult, L2 for a geriatr
 
 ### Safety behaviours
 
+- **Gate 0 — nurse direct-to-resus bypass.** One tap on the first screen routes a visibly critical patient at Level 1 / zero wait, short-circuiting every rule below. Raises a Critical alert, writes the nurse's stated reason to the audit trail, and records the intake as pending. *Verified: stable vitals and a "minor sprain" complaint cannot dilute it.*
+- **Multilingual matching.** The engine — not only the AI — reads Hindi, Marathi and Hinglish. ~23 term families with transliterated and Devanagari forms. *Verified: a Hinglish fever/abdominal case in a 66-year-old now reaches L2 instead of L4.*
+- **Negation-aware matching, in both word orders.** "No chest pain" no longer matches the cardiac rule — and neither does Hindi's verb-final `"chest pain bilkul nahi hai"`, which needs a *forward* look because the negator follows the term. Both were causing the same failure: a denied symptom fired the cardiac rule, which then suppressed the atypical-presentation rule written for exactly that patient. *Verified live: the same narrative now reaches the atypical rule instead.*
+- **Atypical ACS detection (M2), deterministic.** Older adults, people with diabetes, and women ≥45 with breathlessness / epigastric pain / sweating / syncope, **or two weaker signs**, reach Cardiac Review with no chest pain reported. Suppressed when a febrile or stroke-like picture has its own pathway. *Verified in both directions: it catches the 68-year-old diabetic, and it does not funnel vague geriatric malaise into cardiac.*
 - **Asymmetric undertriage safeguard** — escalates when ≥2 vitals are missing alongside risk signals
-- **Escalation cap** — stacked modifiers raise acuity by at most one level total, never compounding
+- **Escalation cap** — stacked modifiers raise acuity by at most one level total, never compounding, and **never past Level 2**. Level 1 comes from a critical finding or Gate 0 only. *This removed 6 spurious Level 1s from the 20-patient seed.*
 - **Automatic queue monitoring** — background tick advances waiting clocks and raises a Critical alert + audit entry on threshold breach, with no nurse action. *Verified firing unprompted.*
 
-Regression suite: `src/lib/routing.check.ts` — 7 assertions, run with
+### Queue-aware wait estimates
+
+Driven by **actual queue position**, not acuity alone: patients ahead ÷ available clinicians × mean consultation time, plus a per-level turnaround floor. *Verified: a Level 2 next in line shows 10 min; the same patient with 12 ahead shows 154 min.* Position is shown next to the estimate ("Next to be seen" / "3 ahead in queue").
+
+### Geographic cluster detection
+
+Four patients from one locality with a similar infectious picture in a shift raises an outbreak signal, a Warning alert to the shift lead, and isolation placement — **without changing the individual's acuity**, which is asserted in the regression suite. *Verified firing on the seeded dataset.*
+
+Regression suite: `src/lib/routing.check.ts` — 24 assertions across 14 scenarios, run with
 `node --experimental-strip-types src/lib/routing.check.ts`
 
 ---
 
-## 4. Intake wizard — 8 steps
+## 4. Intake wizard — 6 steps
+
+Reduced from 8. Rationale, ordering justification and the time budget are in
+[`docs/INTAKE_DESIGN.md`](docs/INTAKE_DESIGN.md).
 
 | # | Step | Contents |
 |---|---|---|
-| 1 | Arrival | Walk-in · Ambulance · Referral · Pre-arrival call |
-| 2 | Patient basics | Photo, name, age, sex, prior record, categories, medico-legal |
-| 3 | Information source | Speaker, language, communication limitations |
-| 4 | **Chief concern** | **Voice capture + AI conversation** (see §5), symptoms, extraction |
-| 5 | Onset & trend | Onset, duration, severity 1–10, trend |
-| 6 | **Risk screening** | **AI-generated per presentation**, static fallback offline |
-| 7 | Medical history | Conditions, meds, allergies, prior episode, recent visit |
-| 8 | **Vitals & observations** | **AI-prioritised shortlist**, 8 vitals, observations, injury photo |
+| — | **Gate 0** | Red panel at the top of step 1: six observed-reason taps → Level 1, zero wait, wizard exits |
+| 1 | Arrival & source | Walk-in · Ambulance · Referral · Pre-arrival call · **Other (specify)**; speaker, language, communication limitations |
+| 2 | Patient basics | Photo, name, age, **6 sex options**, **locality**, prior record, **11 clinical modifiers** (age group derived automatically), medico-legal |
+| 3 | **Chief concern** | **Voice capture + AI conversation** (see §5), symptoms, extraction, onset, duration, severity, trend |
+| 4 | **Risk screening** | **AI-generated per presentation**, static fallback offline |
+| 5 | Medical history | **6 tappable category groups → 24 subcategories**, meds, allergies, yes/no prior episode & recent visit |
+| 6 | **Vitals & observations** | **Photo first**, **AI-prioritised shortlist**, 8 vitals, observations |
+
+**Live elapsed timer** against the 5-minute research-backed budget sits in the progress header — shown, never enforced.
 
 **Every vital can be marked "not available"** rather than guessed — missing data is a first-class state.
 
@@ -151,6 +168,8 @@ Regression suite: `src/lib/routing.check.ts` — 7 assertions, run with
 | Full audit trail | ✅ Every action attributed |
 | Per-encounter journey timeline | ✅ |
 | Confidence + uncertainty + missing-info surfaced | ✅ Always shown |
+| **Confidence derivation inspectable** | ✅ Weighted completeness × reliability multipliers, every term shown on tap |
+| **Gate 0 bypass logged** | ✅ Critical alert + audit entry + journey entry with the nurse's stated reason |
 | Jurisdiction stated | ✅ India — DPDP Act + hospital policy |
 | Synthetic-data notice | ✅ Visible in-app |
 
@@ -165,7 +184,7 @@ Regression suite: `src/lib/routing.check.ts` — 7 assertions, run with
 | EHR / device outage | Demonstrates graceful degradation |
 | Reset demo data | Two-tap confirm, restores the 20-patient seed |
 
-**Seeded dataset:** 20 patients across all five acuity levels — pediatric, geriatric, pregnancy, trauma, ambiguous, zero-history, and genuine Fast Track cases, in English / Hindi / Hinglish / Marathi.
+**Seeded dataset:** 21 patients across all five acuity levels — pediatric, geriatric, pregnancy, trauma, ambiguous, zero-history, and genuine Fast Track cases, in English / Hindi / Hinglish / Marathi.
 
 ---
 
@@ -173,21 +192,37 @@ Regression suite: `src/lib/routing.check.ts` — 7 assertions, run with
 
 | # | Limitation | Impact |
 |---|---|---|
-| 1 | **Routing engine is English-only.** `hasAny()` does English substring matching, so a Hinglish narrative alone yields `symptoms: []`. Verified: a Hinglish abdominal-pain case with a **yes** to abdominal rigidity routed to **Level 4**. | 🔴 **Potential under-triage.** Mitigated only if the nurse taps *Extract details with AI*, which is manual and skippable. |
-| 2 | **Confidence score is arithmetically invented** — `0.88` minus hand-picked penalties, no derivation. | 🟠 A fabricated number in a judged submission |
-| 3 | **Estimated wait ignores queue position** — "next in line" and "tenth in line" at the same level show the same figure. | 🟠 Contradicts what a nurse sees |
-| 4 | **No Gate 0 bypass** — a nurse cannot fast-track a visibly catastrophic case without the full wizard. | 🔴 Designed in `docs/TRIAGE_CLASSIFICATION.md`, zero code |
-| 5 | **M2 atypical presentation not in the rules** — only the AI catches it; the deterministic engine cannot. | 🟠 Lost entirely if AI is unavailable |
-| 6 | **No geography / outbreak signal** | 🟠 Identified as important, not built |
-| 7 | **Intake exceeds the 5-minute triage budget** — research median is ~2.6 min, 98% under 5; this is 8 steps. | 🟠 Deployability |
+| 1 | **API key ships in the bundle** (`EXPO_PUBLIC_*`) | 🔴 **Prototype only.** Real deployment needs a backend proxy |
+| 2 | **Locality matching is exact-string.** "Kalyan East" and "kalyan (east)" are different places to the cluster detector. | 🟠 Missed clusters from spelling variation |
+| 3 | **Mean consultation time in the wait estimate is one constant (12 min)** for every pathway. A trauma review and a dressing check are not the same length. | 🟠 Estimates skew where the mix is unusual |
+| 4 | **The multilingual term list is hand-built** (~23 families). It covers the common presentations, not the long tail. | 🟠 An unlisted phrase still falls through to the AI layer alone |
+| 5 | **Negation detection is clause-scoped and lexical.** "I wouldn't say there's chest pain" is not handled. Forward-looking negation is restricted to Hindi/Marathi particles, because applying it to English "not" would wrongly negate "chest pain is severe and she is not vomiting". | 🟠 Conservative direction (over-match, not under-match) |
+| 6 | **The 5-minute budget is measured, not validated.** Six steps is defensible; nobody has timed it with a real nurse on real hardware. | 🟠 Deployability claim is untested |
+| 7 | **Seeded confidence tops out around 0.75** because the synthetic records carry no risk-screening answers and little history. A live intake through the wizard scores up to 0.95. | 🟡 Demo shows lower numbers than the product achieves |
 | 8 | Voice is device-only | 🟡 Web shows a sample fallback |
 | 9 | PDF export unverified on device | 🟡 Different native path than web |
-| 10 | API key ships in the bundle (`EXPO_PUBLIC_*`) | 🔴 **Prototype only.** Real deployment needs a backend proxy |
-| 11 | Similar-case matching is lexical, not semantic | 🟡 Misses paraphrases |
+| 10 | Similar-case matching is lexical, not semantic | 🟡 Misses paraphrases |
+| 11 | Acuity distribution is **L2-heavy** (11 of 21) by design — geriatric safety bias — but has not been validated against real ED case-mix | 🟡 Over-triage direction, deliberate but unproven |
+
+### Fixed since the previous revision
+
+Recorded here rather than deleted, because each was a real defect and the fix is worth being able to point at:
+
+- **English-only routing engine** — a Hinglish narrative yielded `symptoms: []` and routed a 66-year-old with reported rigidity to Level 4. Now multilingual, asserted.
+- **"No chest pain" matched the cardiac rule**, which then suppressed the atypical-presentation rule on exactly the patients it existed for. Found twice — once for English, then again for Hindi's verb-final word order, which a backward-only check could not see.
+- **Gate 0 silently did nothing on web.** `Alert.alert` with multiple buttons is a no-op in React Native Web, so the most safety-critical control in the app was platform-dependent. Replaced with an in-app two-tap confirm.
+- **The AI second opinion argued against Gate 0** — "routing to immediate resuscitation is not supported; no evidence patient is unresponsive" — reasoning from the empty form rather than recognising it is empty by design. It now concurs and contributes a forward-looking differential instead.
+- **The `-1` unknown-age sentinel rendered as "-1"** on the recommendation screen.
+- **Confidence was a hardcoded `0.88`** minus invented penalties. Now derived and inspectable.
+- **Wait ignored queue position** — "next in line" and "tenth in line" showed the same figure.
+- **No Gate 0 bypass** — a nurse could not fast-track a visibly catastrophic case.
+- **M2 atypical presentation lived only in the AI** — the protection vanished with the network.
+- **6 of 20 seeded patients were Level 1** purely from stacked soft modifiers, none with a critical finding.
+- **The escalation floor then clobbered genuine Level 1s** — an unresponsive patient was pushed back to Level 2 because their trend was also "worsening". Caught by adding the assertion, not by reading the code.
+- **The first atypical-ACS rule was an over-triage funnel**, sweeping 6 of 20 seeded patients into Cardiac Review including a febrile case and a stroke case.
+- **`locality` was silently dropped** by the demo-data builder, so cluster detection reported zero on seeded data despite being correct.
 
 **Not built by deliberate decision:** facial recognition — excluded by `AGENTS.md` §35, and DPDP biometric consent is not obtainable from unconscious patients. Patient recognition is served by the photo already captured.
-
----
 
 ## 9. Stack
 
@@ -205,7 +240,7 @@ Run these from `expo-app/`. If output disagrees with the tables above, **the tab
 # Type safety across the whole app
 npx tsc --noEmit
 
-# Routing regression suite (7 assertions)
+# Routing regression suite (24 assertions)
 node --experimental-strip-types src/lib/routing.check.ts
 
 # Which AI functions are actually wired into UI (0 = orphaned)
@@ -218,6 +253,7 @@ done
 ls src/screens | wc -l          # screens
 ls src/components | wc -l       # components
 grep -cE "^  // [0-9]+[a-z]?\." src/lib/routing.ts   # routing rules
+grep -c "assert\." src/lib/routing.check.ts          # regression assertions
 
 # Seeded data counts
 node -e "const s=require('fs').readFileSync('src/lib/demoData.ts','utf8');

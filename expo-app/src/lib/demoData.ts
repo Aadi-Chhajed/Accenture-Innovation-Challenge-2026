@@ -14,6 +14,7 @@ function patient(id: string, name: string, age: number, sex: Patient["sex"], pre
 
 const patients = [
   patient("P-1001", "Ramesh Kulkarni", 72, "Male", "Available", "Known hypertension; prior emergency visit for breathing concern."),
+  patient("P-1021", "Sunil Waghmare", 58, "Male", "Not found"),
   patient("P-1002", "Anika Sharma", 4, "Female", "Not found"),
   patient("P-1003", "Meera Iyer", 31, "Female", "Available", "Pregnancy record available; 28 weeks noted in synthetic demo chart."),
   patient("P-1004", "Imran Khan", 45, "Male", "Unknown"),
@@ -81,6 +82,8 @@ function encounter(partial: Partial<Encounter> & Pick<Encounter, "id" | "patient
     },
     observations: partial.observations ?? [],
     medicoLegal: partial.medicoLegal ?? false,
+    locality: partial.locality,
+    nurseCriticalOverride: partial.nurseCriticalOverride,
     transcript: partial.transcript,
     photoAttached: partial.photoAttached ?? false,
     status: partial.status ?? "Waiting",
@@ -100,6 +103,31 @@ function encounter(partial: Partial<Encounter> & Pick<Encounter, "id" | "patient
 
 export function createDemoState(): AppState {
   const encounters = [
+    // A genuine Level 1. Without one the dataset had no resuscitation case at
+    // all — the six that used to show as Level 1 got there by accumulating soft
+    // modifiers, which is precisely the over-triage the escalation cap exists to
+    // stop. This one reaches Level 1 the only way it should: a critical finding.
+    encounter({
+      id: "E-2000",
+      patientId: "P-1021",
+      token: "C-080",
+      arrivalMode: "Ambulance",
+      speakerSource: "Ambulance staff",
+      language: "Marathi",
+      patientCategories: ["Unconscious/unresponsive"],
+      primaryConcern: "Collapsed at work, unresponsive on arrival",
+      locality: "Ulhasnagar",
+      symptoms: ["Weakness / fainting", "Breathing difficulty"],
+      freeText: "Kaamavar padla, hosh nahi. Gasping breathing during transport, no bystander CPR.",
+      onset: "25 minutes ago",
+      duration: "25 minutes",
+      reportedSeverity: 10,
+      trend: "Worsening",
+      vitals: { spo2: 84, pulse: 132, bpSystolic: 82, bpDiastolic: 48, respiratoryRate: 32, consciousness: "Unresponsive" },
+      observations: ["Cyanosed lips", "Gasping respiration"],
+      waitingMins: 0,
+      status: "In pathway",
+    }),
     encounter({
       id: "E-2001",
       patientId: "P-1001",
@@ -109,6 +137,7 @@ export function createDemoState(): AppState {
       language: "Hinglish",
       patientCategories: ["Geriatric"],
       primaryConcern: "Breathing difficulty",
+      locality: "Thane West",
       symptoms: ["Breathing difficulty", "Chest discomfort", "Weakness / fainting"],
       freeText: "Mere father ko afternoon se saans lene mein takleef hai aur chest mein heaviness bol rahe hain.",
       onset: "This afternoon",
@@ -183,6 +212,7 @@ export function createDemoState(): AppState {
       language: "English",
       patientCategories: ["Geriatric"],
       primaryConcern: "Sudden confusion and weakness",
+      locality: "Thane West",
       symptoms: ["Confusion/altered behavior", "Stroke-like symptoms"],
       freeText: "Family reports sudden speech difficulty and arm weakness.",
       onset: "Not clear",
@@ -201,6 +231,7 @@ export function createDemoState(): AppState {
       language: "English",
       patientCategories: [],
       primaryConcern: "Road traffic accident",
+      locality: "Mumbra",
       symptoms: ["Injury/trauma", "Bleeding"],
       freeText: "Bike accident, visible leg injury and bleeding.",
       onset: "Not clear",
@@ -257,6 +288,7 @@ export function createDemoState(): AppState {
       communicationLimitations: [],
       patientCategories: ["Geriatric", "Communication-impaired"],
       primaryConcern: "Fever and cough",
+      locality: "Kalyan East",
       symptoms: ["Fever/infection symptoms", "Breathing difficulty"],
       freeText: "Bukhar, khansi, aur saans phool rahi hai. History unclear.",
       reportedSeverity: 6,
@@ -271,6 +303,7 @@ export function createDemoState(): AppState {
       speakerSource: "Family",
       language: "Marathi",
       primaryConcern: "Infant crying and fever",
+      locality: "Kalyan East",
       symptoms: ["Pediatric fever/crying/lethargy", "Fever/infection symptoms"],
       freeText: "Baalak satat radat aahe, dudh kami ghet aahe, tap aahe.",
       reportedSeverity: 7,
@@ -285,6 +318,7 @@ export function createDemoState(): AppState {
       language: "English",
       patientCategories: ["Child"],
       primaryConcern: "Mild fever and reduced appetite",
+      locality: "Kalyan East",
       symptoms: ["Fever / infection symptoms"],
       freeText: "Fever since yesterday evening, drinking fluids, playing a little less than usual but responsive and alert.",
       onset: "Yesterday evening",
@@ -321,6 +355,7 @@ export function createDemoState(): AppState {
       language: "English",
       patientCategories: ["Geriatric"],
       primaryConcern: "Feeling unwell with mild fever",
+      locality: "Dombivli West",
       symptoms: ["Fever / infection symptoms"],
       freeText: "Low-grade fever since this morning, feels more tired than usual, no other specific complaints.",
       onset: "This morning",
@@ -339,6 +374,7 @@ export function createDemoState(): AppState {
       language: "English",
       patientCategories: [],
       primaryConcern: "Mild sore throat",
+      locality: "Badlapur",
       symptoms: [],
       freeText: "Sore throat for one day, no fever, eating and drinking normally, wants a quick check. No prior record found in the system.",
       onset: "Yesterday",
@@ -411,6 +447,7 @@ export function createDemoState(): AppState {
       language: "English",
       patientCategories: [],
       primaryConcern: "Fever and body ache",
+      locality: "Kalyan East",
       symptoms: ["Fever / infection symptoms"],
       freeText: "Fever since last night with body aches, no rash, no recent travel. No prior record found in the system.",
       onset: "Last night",
@@ -447,6 +484,7 @@ export function createDemoState(): AppState {
       language: "English",
       patientCategories: [],
       primaryConcern: "Abdominal pain since this morning",
+      locality: "Ulhasnagar",
       symptoms: ["Abdominal pain"],
       freeText: "Sharp abdominal pain came on this morning, no vomiting, no fever, difficult to localize exactly where it hurts. No prior record found in the system.",
       onset: "This morning",
@@ -496,6 +534,20 @@ export function createDemoState(): AppState {
     }
   ];
 
+  // Second pass with the full queue as context. Each encounter above was
+  // computed in isolation, which is fine for its own rules but blind to the two
+  // signals that only exist across patients: how many people are actually ahead
+  // of you, and whether four of your neighbours arrived with the same fever.
+  const seedPolicy = { safetyBias: 78, waitingTimeWeight: 42, congestionWeight: 55, uncertaintyEscalation: 72 };
+  for (const e of encounters) {
+    e.recommendation = calculateRecommendation(e, baseResources, seedPolicy, {
+      encounters,
+      patient: patients.find((p) => p.id === e.patientId),
+    });
+    e.currentPathway = e.recommendation.pathway;
+    e.assignedQueue = e.recommendation.destination;
+  }
+
   return {
     hospital: {
       id: "H-CITYCARE",
@@ -542,6 +594,7 @@ export function createDemoState(): AppState {
     alerts: [
       { id: "A1", encounterId: "E-2004", level: "Warning", title: "Ambiguous intake", detail: "Weakness case has missing vitals and contradictory history.", createdAt: iso(-8), acknowledged: false },
       { id: "A2", encounterId: "E-2005", level: "Critical", title: "Waiting patient needs review", detail: "Sudden neuro review signals with worsening trend.", createdAt: iso(-4), acknowledged: false },
+      { id: "A0", level: "Warning", title: "Possible local cluster — Kalyan East", detail: "4 patients from Kalyan East presenting with a similar infectious picture this shift. Notify infection control and review isolation capacity.", createdAt: iso(-6), acknowledged: false },
       { id: "A3", level: "Warning", title: "Pediatric beds constrained", detail: "Pediatric pathway has limited available beds.", createdAt: iso(-2), acknowledged: false },
     ],
     audit: [

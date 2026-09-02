@@ -25,3 +25,12 @@ export function initials(name: string): string {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
+
+/**
+ * Age for display. `-1` is the sentinel for "not recorded" — used by Gate 0
+ * arrivals, where guessing a number would silently apply that age group's vital
+ * thresholds. It must never reach the screen as "-1".
+ */
+export function ageLabel(age: number): string {
+  return age >= 0 ? String(age) : "age unknown";
+}

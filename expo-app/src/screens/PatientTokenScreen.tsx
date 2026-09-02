@@ -2,7 +2,7 @@ import { View, Text, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useAppState } from "../lib/store";
-import { urgencyStyles } from "../lib/urgency";
+import { urgencyStyles, ageLabel } from "../lib/urgency";
 
 // Ported from stitch_patienttriage.ai_nurse_portal/patient_token_generated/code.html
 export function PatientTokenScreen({
@@ -46,7 +46,7 @@ export function PatientTokenScreen({
           <View className="items-center gap-1 mt-4">
             <Text className="font-headline-md text-headline-md text-on-surface">{patient.name}</Text>
             <Text className="font-body-md text-body-md text-on-surface-variant">
-              {patient.age} yrs • {patient.sex}
+              {patient.age >= 0 ? `${patient.age} yrs` : ageLabel(patient.age)} • {patient.sex}
             </Text>
           </View>
         </View>

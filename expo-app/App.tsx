@@ -41,6 +41,27 @@ function Root() {
   const [dashboardFilter, setDashboardFilter] = useState<"All" | "Drafts">("All");
   const dispatch = useAppDispatch();
 
+  function createFromWizard(data: WizardData) {
+    const encounterId = `E-${Date.now()}`;
+    dispatch({
+      type: "createEncounter",
+      encounter: {
+        ...data,
+        id: encounterId,
+        patientName: data.patientName || "Unnamed Patient",
+        // -1 means "not recorded", distinct from a genuine age of 0. The store
+        // refuses to infer an age group from it rather than silently applying
+        // infant thresholds to an unknown adult.
+        age: data.age ?? -1,
+        sex: data.sex ?? "Unknown",
+        photoUrl: data.photoUri,
+      },
+    });
+    setPendingWizardData(null);
+    setActiveEncounterId(encounterId);
+    setScreen("recommendation");
+  }
+
   function handleNavigateTab(tab: TabKey) {
     if (tab === "newPatient") {
       setResumeDraft(undefined);
@@ -114,6 +135,12 @@ function Root() {
         }}
         onComplete={(data) => {
           if (resumeDraft) dispatch({ type: "deleteDraft", draftId: resumeDraft.id });
+          // Gate 0 skips the analysis animation entirely. A patient the nurse
+          // has judged to be dying does not wait on a progress bar.
+          if (data.nurseCriticalOverride) {
+            createFromWizard(data);
+            return;
+          }
           setPendingWizardData(data);
           setScreen("analyzing");
         }}
@@ -130,21 +157,7 @@ function Root() {
             setScreen("dashboard");
             return;
           }
-          const encounterId = `E-${Date.now()}`;
-          dispatch({
-            type: "createEncounter",
-            encounter: {
-              ...data,
-              id: encounterId,
-              patientName: data.patientName || "Unnamed Patient",
-              age: data.age ?? 0,
-              sex: data.sex ?? "Other",
-              photoUrl: data.photoUri,
-            },
-          });
-          setPendingWizardData(null);
-          setActiveEncounterId(encounterId);
-          setScreen("recommendation");
+          createFromWizard(data);
         }}
       />
     );

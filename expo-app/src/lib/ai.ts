@@ -351,6 +351,11 @@ export async function reviewRecommendation(
   const v = encounter.vitals;
   const userText = [
     "PATIENT",
+    // Stated first so the model reads it before the empty fields it would
+    // otherwise mistake for evidence against the bypass.
+    ...(encounter.nurseCriticalOverride
+      ? [`GATE 0 BYPASS ACTIVE — the triage nurse observed: "${encounter.nurseCriticalOverride.reason}" and sent this patient straight to resuscitation. Fields below are incomplete by design.`]
+      : []),
     "Categories: " + (encounter.patientCategories.join(", ") || "unspecified"),
     "Primary concern: " + (encounter.primaryConcern || "-"),
     "Symptoms: " + (encounter.symptoms.join(", ") || "-"),

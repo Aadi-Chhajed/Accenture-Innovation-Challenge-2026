@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useReducer, useState } fro
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { calculateRecommendation, SAFE_WAIT_THRESHOLD_MINUTES } from "./routing";
 import { createDemoState } from "./demoData";
-import type { AppState, Encounter, Patient, Resource } from "./types";
+import type { AppState, Encounter, Patient, Resource, Sex } from "./types";
 
 const STORAGE_KEY = "patienttriage_state_v1";
 
@@ -18,7 +18,13 @@ export function audit(state: AppState, actor: string, action: string, target: st
 }
 
 function recalcEncounter(state: AppState, encounter: Encounter) {
-  encounter.recommendation = calculateRecommendation(encounter, state.resources, state.routingPolicy);
+  // Cross-encounter context: queue position and outbreak clustering are both
+  // invisible from a single encounter, and the patient record carries the sex
+  // and age the atypical-presentation rule needs.
+  encounter.recommendation = calculateRecommendation(encounter, state.resources, state.routingPolicy, {
+    encounters: state.encounters,
+    patient: state.patients.find((p) => p.id === encounter.patientId),
+  });
   encounter.currentPathway = encounter.recommendation.pathway;
   encounter.assignedQueue = encounter.recommendation.destination;
   encounter.updatedAt = new Date().toISOString();
@@ -40,7 +46,7 @@ export type ActionRequest =
   | { type: "surge" }
   | { type: "staffShortage" }
   | { type: "ehrFailure" }
-  | { type: "createEncounter"; encounter: Partial<Encounter> & { patientName: string; age: number; sex: "Female" | "Male" | "Other"; previousRecord?: Patient["previousRecord"]; photoUrl?: string } };
+  | { type: "createEncounter"; encounter: Partial<Encounter> & { patientName: string; age: number; sex: Sex; previousRecord?: Patient["previousRecord"]; photoUrl?: string } };
 
 // Ported from the Next.js prototype's runAction() mutator (src/lib/store.ts), with
 // file/SQLite persistence stripped out — this reducer is pure, persistence is handled
@@ -351,7 +357,20 @@ function reducer(state: AppState, input: ActionRequest): AppState {
     const patientId = `P-${Date.now()}`;
     const encounterId = input.encounter.id || `E-${Date.now()}`;
     const token = `C-0${Math.floor(100 + Math.random() * 899)}`;
-    const ageGroup = input.encounter.age < 2 ? "Infant" : input.encounter.age < 13 ? "Child" : input.encounter.age >= 65 ? "Geriatric" : "Adult";
+    // Gate 0 arrivals may have no age yet — recorded as -1 rather than guessed.
+    // Defaulting an unknown age to a number would silently apply that group's
+    // vital thresholds, which is exactly the kind of invented input the engine
+    // is meant to refuse.
+    const ageKnown = input.encounter.age >= 0;
+    const ageGroup = !ageKnown
+      ? "Adult"
+      : input.encounter.age < 2
+        ? "Infant"
+        : input.encounter.age < 13
+          ? "Child"
+          : input.encounter.age >= 65
+            ? "Geriatric"
+            : "Adult";
     draft.patients.unshift({
       id: patientId,
       name: input.encounter.patientName,
@@ -370,7 +389,14 @@ function reducer(state: AppState, input: ActionRequest): AppState {
       speakerSource: input.encounter.speakerSource ?? "Patient",
       language: input.encounter.language ?? "English",
       communicationLimitations: input.encounter.communicationLimitations ?? [],
-      patientCategories: input.encounter.patientCategories ?? [ageGroup],
+      // The derived age group is ALWAYS merged in, never merely defaulted: the
+      // wizard sends an array of clinical modifiers only, and several routing
+      // rules key off "Geriatric" / "Infant" / "Child". Treating the derived
+      // group as a fallback meant any patient with one modifier selected lost
+      // their age category entirely.
+      patientCategories: Array.from(
+        new Set([...(input.encounter.patientCategories ?? []), ageKnown ? ageGroup : "Age not recorded"]),
+      ),
       primaryConcern: input.encounter.primaryConcern ?? "New intake",
       symptoms: input.encounter.symptoms ?? [],
       freeText: input.encounter.freeText ?? "",
@@ -383,6 +409,9 @@ function reducer(state: AppState, input: ActionRequest): AppState {
       history: input.encounter.history ?? { conditions: "Unknown", medications: "Unknown", allergies: "Not asked yet", previousEpisode: "Unknown", recentVisit: "Unknown" },
       observations: input.encounter.observations ?? [],
       medicoLegal: input.encounter.medicoLegal ?? false,
+      locality: input.encounter.locality,
+      nurseCriticalOverride: input.encounter.nurseCriticalOverride,
+      arrivalModeOther: input.encounter.arrivalModeOther,
       transcript: input.encounter.transcript,
       photoAttached: input.encounter.photoAttached ?? false,
       status: "Waiting",
@@ -397,6 +426,39 @@ function reducer(state: AppState, input: ActionRequest): AppState {
     recalcEncounter(draft, encounter);
     draft.encounters.unshift(encounter);
     audit(draft, draft.nurseSession?.name || "Triage Nurse", "ENCOUNTER_CREATED", encounter.id, `${input.encounter.patientName} added through nurse intake (Token ${token}).`);
+
+    // Gate 0 is a clinical decision made without the questionnaire, so it has
+    // to leave a louder trail than a normal intake: the resus team needs the
+    // alert and the record needs the nurse's stated reason.
+    if (encounter.nurseCriticalOverride) {
+      draft.alerts.unshift({
+        id: `A-${Date.now()}`,
+        encounterId: encounter.id,
+        level: "Critical",
+        title: `Direct to resuscitation — ${encounter.token}`,
+        detail: `${input.encounter.patientName}: ${encounter.nurseCriticalOverride.reason}. Triage questionnaire bypassed; intake to be completed retrospectively.`,
+        createdAt: now,
+        acknowledged: false,
+      });
+      encounter.journey.push({ time: now, event: `Gate 0 bypass — ${encounter.nurseCriticalOverride.reason}`, actor: encounter.nurseCriticalOverride.nurseId });
+      audit(draft, encounter.nurseCriticalOverride.nurseId, "GATE0_BYPASS", encounter.id, `Nurse routed directly to resuscitation on sight: ${encounter.nurseCriticalOverride.reason}`);
+    }
+
+    // Outbreak clustering is detected during routing; raising the alert is the
+    // store's job because it is a shift-level event, not a patient-level one.
+    const cluster = encounter.recommendation.outbreakSignal;
+    if (cluster && !draft.alerts.some((a) => a.title.startsWith("Possible local cluster") && !a.acknowledged)) {
+      draft.alerts.unshift({
+        id: `A-${Date.now() + 1}`,
+        encounterId: encounter.id,
+        level: "Warning",
+        title: `Possible local cluster — ${encounter.locality}`,
+        detail: `${cluster}. Notify infection control and review isolation capacity.`,
+        createdAt: now,
+        acknowledged: false,
+      });
+      audit(draft, "System", "OUTBREAK_SIGNAL", encounter.locality ?? "unknown locality", cluster);
+    }
   }
 
   draft.encounters.sort((a, b) => a.recommendation.level - b.recommendation.level || b.waitingMins - a.waitingMins);

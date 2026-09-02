@@ -6,7 +6,7 @@ import { BottomNavBar, type TabKey } from "../components/BottomNavBar";
 import { OverrideModal } from "../components/OverrideModal";
 import { ReassessModal } from "../components/ReassessModal";
 import { useAppDispatch, useAppState } from "../lib/store";
-import { urgencyStyles } from "../lib/urgency";
+import { urgencyStyles, ageLabel } from "../lib/urgency";
 import { reviewRecommendation, isAiConfigured, type AiReview } from "../lib/ai";
 import {
   analyzeHolistic,
@@ -37,6 +37,7 @@ export function AIRecommendationScreen({
   const [holistic, setHolistic] = useState<HolisticAnalysis | null>(null);
   const [prior, setPrior] = useState<PriorRecordAnalysis | null>(null);
   const [deepBusy, setDeepBusy] = useState(false);
+  const [showConfidence, setShowConfidence] = useState(false);
 
   const encounter = state.encounters.find((e) => e.id === encounterId);
   const patient = encounter ? state.patients.find((p) => p.id === encounter.patientId) : undefined;
@@ -145,7 +146,7 @@ export function AIRecommendationScreen({
             <Text className="font-headline-lg text-headline-lg text-on-surface">AI Routing Recommendation</Text>
           </View>
           <Text className="font-body-md text-body-md text-on-surface-variant">
-            {patient.name}, {patient.age} • {patient.sex}, {encounter.id}
+            {patient.name}, {ageLabel(patient.age)} • {patient.sex}, {encounter.id}
           </Text>
         </View>
 
@@ -179,8 +180,52 @@ export function AIRecommendationScreen({
                 <Text className="font-label-caps text-label-caps text-on-surface-variant">EST. WAIT</Text>
               </View>
               <Text className="font-body-lg text-body-lg text-on-surface font-semibold">{rec.estimatedWait} min</Text>
+              {rec.queuePosition != null && (
+                <Text className="font-helper-text text-helper-text text-on-surface-variant">
+                  {rec.queuePosition === 1 ? "Next to be seen" : `${rec.queuePosition - 1} ahead in queue`}
+                </Text>
+              )}
             </View>
           </View>
+
+          {/* The confidence number is derived, so the derivation is shown. A
+              bare percentage a nurse cannot interrogate is worse than none. */}
+          {rec.confidenceBasis?.length > 0 && (
+            <Pressable onPress={() => setShowConfidence((v) => !v)} accessibilityRole="button" className="gap-2">
+              <View className="flex-row items-center gap-1">
+                <MaterialIcons name={showConfidence ? "expand-less" : "expand-more"} size={16} color="#3525cd" />
+                <Text className="font-helper-text text-helper-text text-primary">
+                  {showConfidence ? "Hide" : "How was this confidence calculated?"}
+                </Text>
+              </View>
+              {showConfidence && (
+                <View className="bg-surface-container-low rounded-lg p-3 gap-2 border border-outline-variant">
+                  {rec.confidenceBasis.map((b, i) => (
+                    <View key={i}>
+                      <Text className="font-label-caps text-label-caps text-on-surface-variant">{b.factor.toUpperCase()}</Text>
+                      <Text className="font-body-md text-body-md text-on-surface">{b.effect}</Text>
+                    </View>
+                  ))}
+                  <Text className="font-helper-text text-helper-text text-on-surface-variant">
+                    This measures how complete and reliable the recorded information is — not the probability that the routing is correct.
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          )}
+
+          {rec.outbreakSignal && (
+            <View className="bg-error-container/40 border border-error/30 rounded-lg p-3 gap-1">
+              <View className="flex-row items-center gap-2">
+                <MaterialIcons name="coronavirus" size={16} color="#93000a" />
+                <Text className="font-label-caps text-label-caps text-on-surface">POSSIBLE LOCAL CLUSTER</Text>
+              </View>
+              <Text className="font-body-md text-body-md text-on-surface">{rec.outbreakSignal}</Text>
+              <Text className="font-helper-text text-helper-text text-on-surface-variant">
+                Placement and infection-control signal only — this patient&apos;s own acuity is unchanged.
+              </Text>
+            </View>
+          )}
         </View>
 
         <View className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-5 gap-3">
