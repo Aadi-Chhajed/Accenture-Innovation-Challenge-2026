@@ -192,8 +192,9 @@ export function vitalsPlanPrompt(validVitalKeys: string[]): string {
     SAFETY_RULES,
     "",
     "TASK: decide which vital signs and physical observations matter MOST for this specific presentation.",
-    "Return the highest-value vitals first, each with a short reason a nurse would accept.",
-    "Never omit a vital that could reveal a time-critical condition for this presentation.",
+    "Return AT MOST 4 vitals in `priority` — this is a shortlist, not a ranking of everything. Listing all of them is a failure: the whole point is telling a busy nurse which two or three to take FIRST.",
+    "Put every other clinically reasonable vital in `optional`. Nothing is lost — the nurse still sees the full set on screen.",
+    "Never omit from `priority` a vital that could reveal a time-critical condition for this presentation.",
     `Valid vital keys are exactly: ${validVitalKeys.join(", ")}.`,
     "Also suggest physical observations worth recording for this specific case.",
   ].join("\n");

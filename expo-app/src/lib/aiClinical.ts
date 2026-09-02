@@ -237,6 +237,7 @@ export async function planVitals(partial: Partial<Encounter> & { age?: number })
       properties: {
         priority: {
           type: "array",
+          maxItems: 4,
           items: {
             type: "object",
             properties: {

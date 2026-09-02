@@ -410,6 +410,7 @@ export function AIRecommendationScreen({
       />
       <ReassessModal
         visible={reassessOpen}
+        encounter={encounter}
         onCancel={() => setReassessOpen(false)}
         onConfirm={(note) => {
           dispatch({ type: "reassess", encounterId, note });

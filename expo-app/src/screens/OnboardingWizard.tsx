@@ -17,7 +17,7 @@ import { TopAppBar } from "../components/TopAppBar";
 import { symptomOptions } from "../lib/pathways";
 import { extractFromNarrative, isAiConfigured, aiModelLabel, type AiExtraction } from "../lib/ai";
 import { VoiceCapture } from "../components/VoiceCapture";
-import { generateRiskScreening, type RiskScreening } from "../lib/aiClinical";
+import { generateRiskScreening, generateNextQuestions, planVitals, type RiskScreening, type NextQuestions, type VitalsPlan } from "../lib/aiClinical";
 import type { DraftEncounter, Encounter, Patient, Vitals } from "../lib/types";
 
 export type WizardData = Partial<Encounter> & {
@@ -27,9 +27,25 @@ export type WizardData = Partial<Encounter> & {
   previousRecord?: Patient["previousRecord"];
   photoUri?: string;
   injuryPhotoUri?: string;
+  /** Answered AI follow-up questions. Folded into freeText on completion so the
+   *  routing engine and every downstream AI call see the answers too. */
+  conversation?: { q: string; a: string; why?: string }[];
 };
 
 const TOTAL_STEPS = 8;
+
+// Maps the vital keys the model returns onto the labels shown on screen.
+const VITAL_LABELS: Record<string, string> = {
+  temperature: "Temperature",
+  pulse: "Pulse",
+  spo2: "SpO2",
+  respiratoryRate: "Respiratory rate",
+  bpSystolic: "BP systolic",
+  bpDiastolic: "BP diastolic",
+  painScore: "Pain score",
+  bloodSugar: "Blood sugar",
+  consciousness: "Consciousness",
+};
 const stepTitles = [
   "Arrival",
   "Patient basics",
@@ -259,6 +275,10 @@ export function OnboardingWizard({
   const [riskScreen, setRiskScreen] = useState<RiskScreening | null>(null);
   const [riskBusy, setRiskBusy] = useState(false);
   const [riskFor, setRiskFor] = useState<string>("");
+  const [convo, setConvo] = useState<NextQuestions | null>(null);
+  const [convoBusy, setConvoBusy] = useState(false);
+  const [vitalsPlan, setVitalsPlan] = useState<VitalsPlan | null>(null);
+  const [vitalsPlanFor, setVitalsPlanFor] = useState<string>("");
   const draftId = initialDraft?.id;
 
   function update(patch: Partial<WizardData>) {
@@ -273,8 +293,19 @@ export function OnboardingWizard({
   }
 
   function goNext() {
-    if (step < TOTAL_STEPS) setStep(step + 1);
-    else onComplete(data);
+    if (step < TOTAL_STEPS) {
+      setStep(step + 1);
+      return;
+    }
+    // Fold answered questions into the narrative. Without this the routing
+    // engine never sees them — it only reads freeText/symptoms/observations,
+    // so an answer like "pain radiates to the arm" would be captured on screen
+    // but have no effect on the recommendation.
+    const answered = data.conversation ?? [];
+    const merged = answered.length
+      ? [data.freeText ?? "", ...answered.map((c) => `${c.q} ${c.a}.`)].filter(Boolean).join(" ")
+      : data.freeText;
+    onComplete({ ...data, freeText: merged });
   }
 
   function goBack() {
@@ -304,6 +335,48 @@ export function OnboardingWizard({
       RNAlert.alert("Camera unavailable", "Could not open the camera. Intake continues without a photo.");
       console.warn("[photo]", err);
     }
+  }
+
+  // Composite narrative: what was said PLUS anything already answered, so each
+  // round of questions builds on the last instead of restarting.
+  function narrativeWithAnswers(): string {
+    const answered = data.conversation ?? [];
+    return [data.freeText ?? "", ...answered.map((c) => `${c.q} ${c.a}.`)].filter(Boolean).join(" ");
+  }
+
+  async function askNextQuestions() {
+    const narrative = narrativeWithAnswers();
+    if (!narrative.trim()) {
+      RNAlert.alert("Nothing to work with yet", "Record or type what the patient described first.");
+      return;
+    }
+    setConvoBusy(true);
+    try {
+      const asked = (data.conversation ?? []).map((c) => c.q);
+      const out = await generateNextQuestions(
+        { ...data, freeText: narrative, age: data.age, sex: data.sex },
+        asked
+      );
+      if (!out) {
+        RNAlert.alert(
+          isAiConfigured() ? "AI unavailable" : "AI key not set",
+          "Continue entering details manually — routing still works on rules."
+        );
+        return;
+      }
+      setConvo(out);
+    } finally {
+      setConvoBusy(false);
+    }
+  }
+
+  function answerQuestion(q: string, why: string, a: string) {
+    const existing = data.conversation ?? [];
+    const idx = existing.findIndex((c) => c.q === q);
+    const next = idx >= 0
+      ? existing.map((c, i) => (i === idx ? { ...c, a } : c))
+      : [...existing, { q, a, why }];
+    update({ conversation: next });
   }
 
   async function runAiExtraction() {
@@ -359,6 +432,27 @@ export function OnboardingWizard({
   }
 
   const relevantRiskGroups = (data.symptoms ?? []).filter((s) => riskQuestionSets[s]);
+
+  // Vitals plan: which measurements actually matter for THIS presentation.
+  // Generated on entering step 8 and keyed on the presentation, so editing
+  // earlier steps and returning regenerates rather than showing a stale plan.
+  const vitalsSignature = JSON.stringify([data.symptoms, data.primaryConcern, data.freeText, data.age, data.patientCategories]);
+  useEffect(() => {
+    if (step !== 8 || !isAiConfigured()) return;
+    if (vitalsPlanFor === vitalsSignature) return;
+    let cancelled = false;
+    planVitals({ ...data, age: data.age })
+      .then((plan) => {
+        if (cancelled) return;
+        setVitalsPlan(plan);
+        setVitalsPlanFor(vitalsSignature);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, vitalsSignature]);
 
   // Dynamic risk screening. Regenerates whenever the presentation changes, so
   // going back to edit symptoms doesn't leave stale questions on screen.
@@ -573,6 +667,114 @@ export function OnboardingWizard({
             <View className="gap-section-gap">
               <Text className="font-headline-lg text-headline-lg text-on-surface">What brings the patient in?</Text>
 
+              {/* Voice first: the fastest way in is to let them talk. Everything
+                  below can be filled from what they say. */}
+              <View className="bg-primary-fixed-dim/20 border border-primary/30 rounded-xl p-4 gap-3">
+                <View className="flex-row items-center gap-2">
+                  <MaterialIcons name="record-voice-over" size={20} color="#3525cd" />
+                  <Text className="font-headline-md text-headline-md text-on-surface">Describe the problem</Text>
+                </View>
+                <Text className="font-body-md text-body-md text-on-surface-variant">
+                  Tap record and let the patient or family speak naturally, in any language. The AI listens, then asks only what it still needs.
+                </Text>
+                <View className="self-start">
+                  <VoiceCapture
+                    language={data.language}
+                    onTranscript={(text) => {
+                      const existing = (data.freeText ?? "").trim();
+                      const merged = existing ? existing + " " + text : text;
+                      update({ freeText: merged, transcript: merged });
+                    }}
+                    onSampleFallback={() =>
+                      update({
+                        freeText: voiceSamples[data.language ?? "English"],
+                        transcript: voiceSamples[data.language ?? "English"],
+                      })
+                    }
+                  />
+                </View>
+                <TextInput
+                  className="bg-surface-container-lowest rounded-lg px-3 py-3 font-body-lg text-body-lg text-on-surface"
+                  style={{ minHeight: 96, textAlignVertical: "top" }}
+                  placeholder="…or type what they described"
+                  placeholderTextColor="#777587"
+                  value={data.freeText ?? ""}
+                  onChangeText={(v) => update({ freeText: v })}
+                  multiline
+                />
+                <View className="flex-row gap-2">
+                  <Pressable
+                    onPress={askNextQuestions}
+                    disabled={convoBusy}
+                    accessibilityRole="button"
+                    className={`flex-1 h-touch-target-min rounded-lg flex-row items-center justify-center gap-2 ${convoBusy ? "bg-surface-container" : "bg-primary"}`}
+                  >
+                    {convoBusy ? (
+                      <>
+                        <ActivityIndicator size="small" color="#3525cd" />
+                        <Text className="font-label-caps text-label-caps text-on-surface-variant">Thinking…</Text>
+                      </>
+                    ) : (
+                      <>
+                        <MaterialIcons name="forum" size={18} color="#ffffff" />
+                        <Text className="font-label-caps text-label-caps text-on-primary">
+                          {convo ? "Ask more" : "Ask AI what to check"}
+                        </Text>
+                      </>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Conversational follow-ups */}
+              {convo && convo.questions.length > 0 && (
+                <SectionCard>
+                  <View className="flex-row items-center gap-2">
+                    <MaterialIcons name="forum" size={18} color="#3525cd" />
+                    <Text className="font-headline-md text-headline-md text-on-surface">ASK THE PATIENT</Text>
+                    {convo.readyToRoute && (
+                      <View className="px-2 py-0.5 rounded-md bg-[#F0FDF4]">
+                        <Text className="font-label-caps text-label-caps text-[#16A34A]">ENOUGH TO ROUTE</Text>
+                      </View>
+                    )}
+                  </View>
+                  {convo.questions.map((q) => {
+                    const answered = (data.conversation ?? []).find((c) => c.q === q.question);
+                    const opts = q.options && q.options.length ? q.options : ["Yes", "No", "Unsure"];
+                    return (
+                      <View key={q.question} className="gap-1.5">
+                        <Text className="font-body-lg text-body-lg text-on-surface">{q.question}</Text>
+                        <Text className="font-helper-text text-helper-text text-on-surface-variant">{q.why}</Text>
+                        <View className="flex-row flex-wrap gap-x-2">
+                          {opts.map((opt) => (
+                            <Chip
+                              key={opt}
+                              selected={answered?.a === opt}
+                              label={opt}
+                              onPress={() => answerQuestion(q.question, q.why, opt)}
+                            />
+                          ))}
+                        </View>
+                      </View>
+                    );
+                  })}
+                  {convo.stillMissing.length > 0 && (
+                    <View className="gap-1">
+                      <Text className="font-label-caps text-label-caps text-on-surface-variant">STILL UNKNOWN</Text>
+                      {convo.stillMissing.map((m, i) => (
+                        <Text key={i} className="font-body-md text-body-md text-on-surface-variant">• {m}</Text>
+                      ))}
+                    </View>
+                  )}
+                </SectionCard>
+              )}
+
+              {(data.conversation ?? []).length > 0 && (
+                <Text className="font-helper-text text-helper-text text-on-surface-variant -mt-2">
+                  {(data.conversation ?? []).length} answer(s) recorded — these are added to the narrative and do affect routing.
+                </Text>
+              )}
+
               <View>
                 <FieldLabel>Primary concern</FieldLabel>
                 <TextField
@@ -600,37 +802,6 @@ export function OnboardingWizard({
                 </View>
               </View>
 
-              <View>
-                <View className="flex-row items-center justify-between mb-1.5">
-                  <FieldLabel>What was said</FieldLabel>
-                  <VoiceCapture
-                    language={data.language}
-                    onTranscript={(text) => {
-                      // Append rather than overwrite: a nurse may record several
-                      // times, and losing an earlier statement would be a data
-                      // loss the nurse can't recover.
-                      const existing = (data.freeText ?? "").trim();
-                      const merged = existing ? existing + " " + text : text;
-                      update({ freeText: merged, transcript: merged });
-                    }}
-                    onSampleFallback={() =>
-                      update({
-                        freeText: voiceSamples[data.language ?? "English"],
-                        transcript: voiceSamples[data.language ?? "English"],
-                      })
-                    }
-                  />
-                </View>
-                <TextInput
-                  className="bg-surface-container-low rounded-lg px-3 py-3 font-body-lg text-body-lg text-on-surface"
-                  style={{ minHeight: 110, textAlignVertical: "top" }}
-                  placeholder="Type or dictate what the patient/family described…"
-                  placeholderTextColor="#777587"
-                  value={data.freeText ?? ""}
-                  onChangeText={(v) => update({ freeText: v })}
-                  multiline
-                />
-              </View>
 
               {/* AI extraction */}
               <Pressable
@@ -875,6 +1046,39 @@ export function OnboardingWizard({
               <Text className="font-body-md text-body-md text-on-surface-variant">
                 Mark anything unavailable rather than guessing — missing data is handled safely.
               </Text>
+
+              {/* AI-prioritised vitals for this specific presentation, so the
+                  nurse sees the two or three that matter rather than eight
+                  identical boxes. The full set stays one tap away — nothing is
+                  hidden, only de-emphasised. */}
+              {vitalsPlan && vitalsPlan.priority.length > 0 && (
+                <View className="bg-primary-fixed-dim/20 border border-primary/30 rounded-xl p-4 gap-2">
+                  <View className="flex-row items-center gap-2">
+                    <MaterialIcons name="auto-awesome" size={18} color="#3525cd" />
+                    <Text className="font-headline-md text-headline-md text-on-surface">MEASURE THESE FIRST</Text>
+                  </View>
+                  <Text className="font-helper-text text-helper-text text-on-surface-variant">
+                    Chosen for what this patient described. All other vitals remain available below.
+                  </Text>
+                  {vitalsPlan.priority.map((pv) => (
+                    <View key={pv.vital} className="flex-row items-start gap-2">
+                      <MaterialIcons name="priority-high" size={14} color="#ba1a1a" />
+                      <Text className="flex-1 font-body-md text-body-md text-on-surface">
+                        <Text className="font-semibold">{VITAL_LABELS[pv.vital] ?? pv.vital}</Text>
+                        {" — " + pv.why}
+                      </Text>
+                    </View>
+                  ))}
+                  {vitalsPlan.observations.length > 0 && (
+                    <View className="gap-1 mt-1">
+                      <Text className="font-label-caps text-label-caps text-on-surface-variant">ALSO WORTH OBSERVING</Text>
+                      {vitalsPlan.observations.map((o, i) => (
+                        <Text key={i} className="font-body-md text-body-md text-on-surface">• {o}</Text>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
 
               <View>
                 <FieldLabel>Consciousness</FieldLabel>
