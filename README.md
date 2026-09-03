@@ -1,3 +1,5 @@
+**▶ Live demo — [patienttriage-ai.vercel.app](https://patienttriage-ai.vercel.app)** · sign in with roll number `NUR-1042` and any password. Runs on the deterministic rule engine; the AI layer is disabled in the hosted build so no API key ships in the bundle.
+
 # PatientTriage.ai
 
 **A real-time patient routing intelligence layer for overwhelmed emergency departments.**
